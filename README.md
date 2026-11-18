@@ -4,8 +4,8 @@ A visual planner for an Instagram-style feed. Tiles sit in a 3-column grid, and 
 
 - Plain HTML, CSS and JavaScript. No frameworks, no build step, no server.
 - The plan is saved in the browser (localStorage). Later it is also saved to Google Drive.
-- Media comes live from a shared Google Drive folder (coming with F1). No media is stored in this repo.
-- Hosted on GitHub Pages.
+- Media comes live from a shared Google Drive folder, read-only, after Google sign-in ("Drive'a bağlan"). No media is stored in this repo.
+- Hosted on GitHub Pages from this public repo: https://d4ml4s.github.io/visual-feed-planner/ (not indexed by search engines). Only approved Google accounts can open the library.
 
 ## Run it locally
 

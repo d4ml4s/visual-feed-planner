@@ -11,7 +11,7 @@ See `README.md` for structure and how to run it.
 - Only HTML, CSS and JavaScript. No frameworks, no build step, no database.
 - No server of our own. The plan (tile order, dates, titles, which file is in which tile) lives in the browser's localStorage, and later also as one plan file in Google Drive (F4), so a cleared cache loses nothing.
 - Media lives in one shared Google Drive folder that the app reads live (browser → Google directly, Google sign-in). The Library = what is in that folder right now. Media files are never copied into this repo.
-- Hosted on GitHub Pages from its own private repo. All paths are relative.
+- Hosted on GitHub Pages from its own **public** repo `visual-feed-planner` (https://d4ml4s.github.io/visual-feed-planner/). All paths are relative. Everything committed is public, code and history; the page has `noindex`. The user's data is protected by Google sign-in (only test users), not by the page.
 - This folder is its own Git repo. `TURING COLLEGE 2026/` is a plain container folder with no Git; every project in it has its own repo.
 - The UI is in Turkish. We talk in English.
 
@@ -37,7 +37,7 @@ See `README.md` for structure and how to run it.
 - Until the Doc 2 media is in the Drive folder, the skeleton's images come from the local `media/` copy. After that the skeleton points to Drive and `media/` is deleted.
 
 ## Roadmap
-- Setup: Git → GitHub repo (private) → Google Drive setup → project skills.
+- Setup: Git ✓ → Google Drive connection (read-only) ✓ → GitHub repo (public) + Pages ✓ → project skills.
 - **F1** Tiles: "+" left/right of a tile inserts an empty slot; empty slots are filled from Drive (drag-drop on a computer, tap + choose on a phone); full tiles refuse drops.
 - **F2** Mode bar + move: Görüntüle · Ekle · Taşı · Sil, only the active mode's actions work; Sil has "Geri al".
 - **F4** Plan saved to Drive, the same on every device and person. Until then: "Yedeği indir / yükle".
