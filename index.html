@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Visual Feed Planner</title>
+  <meta name="description" content="Instagram akışını görsel olarak planla. Veriler bu tarayıcıda kalır.">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Crect width='30' height='30' rx='6' fill='%23111'/%3E%3Cg fill='%23fff'%3E%3Crect x='5' y='5' width='6' height='6'/%3E%3Crect x='12' y='5' width='6' height='6'/%3E%3Crect x='19' y='5' width='6' height='6'/%3E%3Crect x='5' y='12' width='6' height='6'/%3E%3Crect x='12' y='12' width='6' height='6'/%3E%3Crect x='19' y='12' width='6' height='6' fill='%23E8435A'/%3E%3Crect x='5' y='19' width='6' height='6'/%3E%3Crect x='12' y='19' width='6' height='6'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1>Visual Feed Planner</h1>
+      <p class="sub">Paylaşımların sırası, gün gün. Bir kutuya dokun, büyük aç.</p>
+      <div class="key"><span>Carousel</span><span>Reel</span><span>Boş kutu</span></div>
+    </header>
+    <nav class="tabs" id="tabs" aria-label="Haftalar"></nav>
+    <div class="wbar" id="wbar" hidden>
+      <div class="wtop"><b id="wt"></b><span id="wr"></span></div>
+      <div class="ths" id="wc"></div>
+    </div>
+    <div class="feed" id="feed"></div>
+    <p class="empty-plan" id="empty-plan" hidden>Henüz kutu yok.</p>
+  </div>
+
+  <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Büyük görünüm">
+    <div class="vbar"><div class="vtitle" id="vtitle"></div><button class="vclose" id="vclose" type="button">Kapat ✕</button></div>
+    <div class="vbody" id="vbody"></div>
+  </div>
+
+  <!-- Local Doc 2 skeleton (gitignored). Missing on the published site until F4 brings the plan from Drive. -->
+  <script src="data/seed.js" onerror="window.SEED = null"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
