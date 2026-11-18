@@ -1,7 +1,8 @@
-/* Visual Feed Planner, baseline: renders the plan as the Doc 2 grid (view only).
+/* Visual Feed Planner: renders the plan as the Doc 2 grid; F1 adds tiles and fills them from Drive.
  * Tile model: { id, kind: 'carousel'|'post'|'reel'|'empty', date: 'YYYY-MM-DD'|'', title,
- *               images: [{src, name}], video?, match?: 'same'|'similar', style?, label?, note }
- * Editing (add / fill / move / delete) arrives with F1 and F2.
+ *               images: [{src, name} | {driveId, name, mime}], video?, match?: 'same'|'similar', style?, label?, note }
+ * Local skeleton images use src; images placed from Drive store only the Drive file id.
+ * Move and delete arrive with F2.
  */
 (function () {
   'use strict';
@@ -90,8 +91,20 @@
   }
 
   // ---------- grid ----------
-  // A missing file (e.g. the local media copy was removed) becomes a soft grey box with the post's title.
+  // Where an image comes from: the local skeleton (src) or Drive (thumbnail, needs sign-in).
+  function srcOf(im, size) {
+    if (im.driveId) return window.Drive ? Drive.thumbUrl(im.driveId, size) : '';
+    return im.src || '';
+  }
+  function missText(t, im) {
+    if (im.driveId && !(window.Drive && Drive.isSignedIn())) return (t.title ? t.title + ' · ' : '') + "Görmek için Drive'a bağlan";
+    return t.title;
+  }
+  function isVideo(im) { return /^video\//.test(im.mime || ''); }
+
+  // A missing file (no local copy, or Drive not connected yet) becomes a soft grey box with the post's title.
   function img(src, alt, title) {
+    if (!src) return el('span', 'miss', title || 'Görsel yok');
     var i = el('img');
     i.loading = 'lazy';
     i.alt = alt || '';
@@ -115,7 +128,7 @@
     } else if (t.kind === 'carousel') {
       tile.classList.add('car');
       var strip = el('div', 'strip');
-      images.forEach(function (im) { strip.appendChild(img(im.src, im.name, t.title)); });
+      images.forEach(function (im) { strip.appendChild(img(srcOf(im, 600), im.name, missText(t, im))); });
       tile.appendChild(strip);
       tile.appendChild(el('span', 'ico'));
       var dots = el('span', 'dots');
@@ -129,7 +142,7 @@
       mark();
     } else {
       tile.classList.add(t.kind === 'reel' ? 'reel' : 'post');
-      tile.appendChild(img(images[0].src, images[0].name, t.title));
+      tile.appendChild(img(srcOf(images[0], 600), images[0].name, missText(t, images[0])));
       if (t.kind === 'reel') tile.appendChild(el('span', 'play'));
       if (t.match === 'same') tile.appendChild(el('span', 'badge same', 'Aynı ürün'));
       if (t.match === 'similar') tile.appendChild(el('span', 'badge sim', 'Benzer'));
@@ -142,9 +155,14 @@
       band.id = w.id;
       tile.appendChild(band);
     }
-    if (!tile.classList.contains('empty')) {
-      tile.setAttribute('role', 'button');
-      tile.tabIndex = 0;
+    tile.setAttribute('role', 'button');
+    tile.tabIndex = 0;
+    if (tile.classList.contains('empty')) {
+      tile.setAttribute('aria-label', 'Boş kutu' + (d ? ' ' + chip(d) : '') + ': doldur');
+    } else {
+      tile.draggable = false;
+      tile.appendChild(addBtn('l', 'Soluna boş kutu ekle'));
+      tile.appendChild(addBtn('r', 'Sağına boş kutu ekle'));
       tile.setAttribute('aria-label', (t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi') + (d ? ' ' + chip(d) : '') + (t.title ? ': ' + t.title : ''));
     }
     return tile;
@@ -207,7 +225,8 @@
       var t = findTile(n.dataset.id);
       n.classList.toggle('today', !!t && t.date === today);
     });
-    if (target && !location.hash) {
+    if (target && !location.hash && !markToday.done) {
+      markToday.done = true;   // only on the first render; edits must not jump the page
       var node = document.querySelector('.tile[data-id="' + target.id + '"]');
       if (node) node.scrollIntoView({ block: 'start' });
     }
@@ -229,10 +248,20 @@
     vtitle.textContent = d ? GUNL[d.getDay()] + ' ' + d.getDate() + ' ' + AY[d.getMonth() + 1] : '';
     if (t.title) vtitle.appendChild(el('small', null, t.title));
 
-    if (t.kind === 'reel' && t.video) {
+    var driveVideo = t.kind === 'reel' && t.images[0].driveId && isVideo(t.images[0]);
+    if (t.kind === 'reel' && (t.video || driveVideo)) {
       var wrap = el('div', 'vvideo');
       var v = el('video');
-      v.src = t.video; v.controls = true; v.muted = true; v.playsInline = true; v.autoplay = true; v.loop = true;
+      v.controls = true; v.muted = true; v.playsInline = true; v.autoplay = true; v.loop = true;
+      if (driveVideo) {
+        v.poster = srcOf(t.images[0], 1200);
+        if (Drive.isSignedIn()) {
+          Drive.fileUrl(t.images[0].driveId).then(function (u) {
+            if (viewer.hidden) { URL.revokeObjectURL(u); return; }
+            v.src = u; v.dataset.blob = u;
+          }, function () {});
+        }
+      } else v.src = t.video;
       wrap.appendChild(v);
       var cap = el('div', 'vcount', (t.images[0].name || '') + (t.match === 'same' ? ' · aynı ürün' : t.match === 'similar' ? ' · benzer ürün' : ''));
       vbody.appendChild(wrap);
@@ -241,7 +270,7 @@
       var strip = el('div', 'vstrip');
       t.images.forEach(function (im) {
         var f = el('figure');
-        f.appendChild(img(im.src, im.name));
+        f.appendChild(img(srcOf(im, 1600), im.name, t.title));
         f.appendChild(el('figcaption', null, im.name || ''));
         strip.appendChild(f);
       });
@@ -263,20 +292,200 @@
 
   function close() {
     viewer.hidden = true;
+    var v = vbody.querySelector('video[data-blob]');
+    if (v) URL.revokeObjectURL(v.dataset.blob);
     vbody.textContent = '';
     document.body.style.overflow = '';
   }
 
-  $('feed').addEventListener('click', function (e) {
-    var node = e.target.closest('.tile');
-    if (node && !node.classList.contains('empty')) open(node);
-  });
-  $('feed').addEventListener('keydown', function (e) {
-    var node = e.target.closest('.tile');
-    if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(node); }
-  });
   $('vclose').addEventListener('click', close);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !viewer.hidden) close(); });
+
+  // =====================================================================
+  // F1: add empty tiles ("+" left/right) and fill empty tiles from Drive
+  // =====================================================================
+  var touch = window.matchMedia('(hover: none)').matches;
+
+  function addBtn(side, label) {
+    var b = el('button', 'add ' + side, '+');
+    b.type = 'button';
+    b.dataset.side = side;
+    b.setAttribute('aria-label', label);
+    return b;
+  }
+
+  function indexOf(id) {
+    for (var i = 0; i < plan.tiles.length; i++) if (plan.tiles[i].id === id) return i;
+    return -1;
+  }
+
+  // The tile's own date, or the nearest dated tile before it (undated tiles live in that week).
+  function dateNear(i) {
+    for (var k = i; k >= 0; k--) { var d = parse(plan.tiles[k].date); if (d) return d; }
+    return null;
+  }
+
+  function persist() {
+    try { Store.save(plan); return true; }
+    catch (e) { toast('Kaydedilemedi: tarayıcı hafızası dolu.'); return false; }
+  }
+
+  function toast(text) {
+    var t = $('toast');
+    t.textContent = text;
+    t.hidden = false;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+
+  // ---- insert: ask the date first ----
+  var ask = $('ask'), pending = null;
+
+  function askDate(id, side) {
+    var i = indexOf(id);
+    if (i < 0) return;
+    var base = dateNear(i);
+    pending = { id: id, side: side };
+    $('ask-title').textContent = side === 'l' ? 'Soluna yeni kutu' : 'Sağına yeni kutu';
+    var opts = $('ask-opts');
+    opts.textContent = '';
+    if (base) {
+      opts.appendChild(dateBtn('Aynı gün', base));
+      opts.appendChild(dateBtn(side === 'l' ? 'Bir gün önce' : 'Bir gün sonra', addDays(base, side === 'l' ? -1 : 1)));
+    } else {
+      var b = el('button', 'abtn', 'Tarihsiz ekle');
+      b.type = 'button'; b.dataset.date = '';
+      opts.appendChild(b);
+    }
+    ask.hidden = false;
+    opts.firstChild.focus();
+  }
+
+  function dateBtn(label, d) {
+    var b = el('button', 'abtn');
+    b.type = 'button';
+    b.dataset.date = iso(d);
+    b.appendChild(el('b', null, label));
+    b.appendChild(el('span', null, chip(d)));
+    return b;
+  }
+
+  function closeAsk() { ask.hidden = true; pending = null; }
+
+  $('ask-opts').addEventListener('click', function (e) {
+    var b = e.target.closest('.abtn');
+    if (!b || !pending) return;
+    var i = indexOf(pending.id);
+    var at = pending.side === 'l' ? i : i + 1;
+    var tile = { id: 't' + Date.now().toString(36), kind: 'empty', date: b.dataset.date, title: '', images: [] };
+    plan.tiles.splice(at, 0, tile);
+    closeAsk();
+    if (!persist()) { plan.tiles.splice(at, 1); return; }
+    render();
+    var node = document.querySelector('.tile[data-id="' + tile.id + '"]');
+    if (node) { node.classList.add('fresh'); node.scrollIntoView({ block: 'nearest' }); node.focus({ preventScroll: true }); }
+  });
+  $('ask-cancel').addEventListener('click', closeAsk);
+  ask.addEventListener('click', function (e) { if (e.target === ask) closeAsk(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !ask.hidden) closeAsk(); });
+
+  // ---- fill an empty tile with Drive files (in the order chosen) ----
+  // 1 image → post, 1 video → reel, 2+ files → carousel.
+  function fill(id, items) {
+    var t = findTile(id);
+    if (!t || !items.length) return false;
+    if (t.kind !== 'empty' && (t.images || []).length) { toast('Bu kutu dolu.'); return false; }
+    var before = JSON.stringify(t);
+    t.images = items.map(function (it) { return { driveId: it.id, name: it.name, mime: it.mime }; });
+    t.kind = items.length > 1 ? 'carousel' : isVideo(t.images[0]) ? 'reel' : 'post';
+    if (!t.title) t.title = t.label || '';
+    delete t.style; delete t.label; delete t.video;
+    if (!persist()) { Object.assign(t, JSON.parse(before)); return false; }
+    render();
+    var node = document.querySelector('.tile[data-id="' + id + '"]');
+    if (node) node.classList.add('fresh');
+    toast(t.kind === 'carousel' ? 'Carousel eklendi (' + items.length + ').' : t.kind === 'reel' ? 'Reel eklendi.' : 'Gönderi eklendi.');
+    return true;
+  }
+
+  function tileLabel(id) {
+    var t = findTile(id);
+    var d = t && parse(t.date);
+    return d ? chip(d) : 'Tarihsiz kutu';
+  }
+
+  // After sign-in: load thumbnails for everything already placed from Drive, then redraw.
+  function driveIds() {
+    var ids = [];
+    plan.tiles.forEach(function (t) { (t.images || []).forEach(function (im) { if (im.driveId) ids.push(im.driveId); }); });
+    return ids;
+  }
+  document.addEventListener('drive:signedin', function () {
+    var ids = driveIds();
+    if (ids.length) Drive.ensureThumbs(ids).then(render);
+  });
+
+  // ---- clicks and keys on the grid ----
+  function disarm(except) {
+    document.querySelectorAll('.tile.armed').forEach(function (n) { if (n !== except) n.classList.remove('armed'); });
+  }
+
+  function activate(node) {
+    if (node.classList.contains('empty')) {
+      if (window.Library) Library.open(node.dataset.id);
+      return;
+    }
+    // Phone: the first tap shows the "+" buttons, the second opens the post.
+    if (touch && !node.classList.contains('armed')) { disarm(node); node.classList.add('armed'); return; }
+    open(node);
+  }
+
+  $('feed').addEventListener('click', function (e) {
+    var add = e.target.closest('.add');
+    if (add) { e.stopPropagation(); askDate(add.closest('.tile').dataset.id, add.dataset.side); return; }
+    var node = e.target.closest('.tile');
+    if (node) activate(node);
+  });
+  $('feed').addEventListener('keydown', function (e) {
+    if (e.target.closest('.add')) return;
+    var node = e.target.closest('.tile');
+    if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); disarm(); node.classList.add('armed'); open(node); }
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.tile')) disarm(); });
+
+  // ---- drag from the library onto the grid (computer) ----
+  var DT = 'application/x-vfp-items';
+  function ours(e) { return Array.prototype.indexOf.call(e.dataTransfer.types, DT) >= 0; }
+  function clearDrag() { document.querySelectorAll('.tile.over, .tile.refuse').forEach(function (n) { n.classList.remove('over', 'refuse'); }); }
+
+  $('feed').addEventListener('dragover', function (e) {
+    if (!ours(e)) return;
+    var node = e.target.closest('.tile');
+    clearDrag();
+    if (!node) return;
+    if (node.classList.contains('empty')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; node.classList.add('over'); }
+    else { e.dataTransfer.dropEffect = 'none'; node.classList.add('refuse'); }
+  });
+  $('feed').addEventListener('dragleave', function (e) {
+    var node = e.target.closest('.tile');
+    if (node && !node.contains(e.relatedTarget)) node.classList.remove('over', 'refuse');
+  });
+  $('feed').addEventListener('drop', function (e) {
+    if (!ours(e)) return;
+    e.preventDefault();
+    clearDrag();
+    var node = e.target.closest('.tile');
+    if (!node || !node.classList.contains('empty')) { toast('Bu kutu dolu.'); return; }
+    var items = [];
+    try { items = JSON.parse(e.dataTransfer.getData(DT)); } catch (err) { return; }
+    if (fill(node.dataset.id, items) && window.Library) Library.clearSelection();
+  });
+  document.addEventListener('dragend', clearDrag);
+  // Files dragged in from the computer are not used (media comes from Drive): don't let the browser open them.
+  document.addEventListener('dragover', function (e) { if (!ours(e)) e.preventDefault(); });
+  document.addEventListener('drop', function (e) { if (!ours(e)) { e.preventDefault(); toast('Önce dosyayı Drive klasörüne ekle, sonra Kütüphane\'den seç.'); } });
+
+  window.Planner = { fill: fill, tileLabel: tileLabel, isEmpty: function (id) { var t = findTile(id); return !!t && (t.kind === 'empty' || !(t.images || []).length); }, DT: DT, toast: toast };
 
   render();
 })();

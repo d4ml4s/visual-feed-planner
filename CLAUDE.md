@@ -11,7 +11,7 @@ See `README.md` for structure and how to run it.
 - Only HTML, CSS and JavaScript. No frameworks, no build step, no database.
 - No server of our own. The plan (tile order, dates, titles, which file is in which tile) lives in the browser's localStorage, and later also as one plan file in Google Drive (F4), so a cleared cache loses nothing.
 - Media lives in one shared Google Drive folder that the app reads live (browser → Google directly, Google sign-in). The Library = what is in that folder right now. Media files are never copied into this repo.
-- Google connection (working): a Google Cloud project in Testing mode, read-only scope `drive.readonly`, test users = the user's Google accounts. `js/config.js` holds the client ID, API key, project number and library folder ID: public by design, locked to `http://localhost:8000` and `https://d4ml4s.github.io`. The sign-in token stays in memory only (about 1 hour), never saved. Users need to sign in again after that, and Google may ask again about once a week in Testing mode.
+- Google connection (working): a Google Cloud project in Testing mode, read-only scope `drive.readonly`, test users = the user's Google accounts. `js/config.js` holds only the client ID and the library folder ID (public by design). No API key is used: the library is our own panel, not Google's Picker. Both are locked to `http://localhost:8000` and `https://d4ml4s.github.io`. The sign-in token stays in memory only (about 1 hour), never saved. Users need to sign in again after that, and Google may ask again about once a week in Testing mode.
 - The library folder has one folder per product, each with `4-5` (posts/carousels) and `9-16` (reels) subfolders.
 - Hosted on GitHub Pages from its own **public** repo `visual-feed-planner` (https://d4ml4s.github.io/visual-feed-planner/). All paths are relative. Everything committed is public, code and history; the page has `noindex`. The user's data is protected by Google sign-in (only test users), not by the page.
 - This folder is its own Git repo. `TURING COLLEGE 2026/` is a plain container folder with no Git; every project in it has its own repo.
@@ -22,7 +22,7 @@ See `README.md` for structure and how to run it.
 - **The master Excel is read-only** (path in `CLAUDE.local.md`). Read it any way that cannot write it; never edit, save, copy over or re-export it. If the plan needs a change, the user updates it in its own session.
 - **Leave the old folders alone:** the master plan folder (path in `CLAUDE.local.md`) and `..\social media plan visualization\`. Read from them if needed; save everything new in this folder.
 - **No media or brand example data in Git.** The Doc 2 skeleton (`data/seed.js`) is gitignored; so are `media/` and video files.
-- **No secrets in the repo.** The Google client ID and API key are public by design and locked to the site's address; never add a client secret (`client_secret*.json` is gitignored).
+- **No secrets in the repo.** The Google client ID is public by design and locked to the site's address. Never add an API key or a client secret (`client_secret*.json` is gitignored).
 - **No personal email in Git.** Commits use the GitHub no-reply address (set in this repo's git config).
 - **The repo is public.** Before every push, check what is staged for brand names, media, personal data and secrets.
 
@@ -43,7 +43,7 @@ See `README.md` for structure and how to run it.
 
 ## Roadmap
 - Setup: Git ✓ → Google Drive connection (read-only, "Drive'a bağlan" shows the library) ✓ → GitHub repo (public) + Pages ✓ → project skills ✓ (`.claude/skills/check-feature` + `tools/check.py`, Playwright for Python using the installed Chrome). UI skills already available: `frontend-design`, `design-skills:design-critique`, `interaction-design`, `accessibility-audit`, `ux-writing`.
-- **F1** Tiles: "+" left/right of a tile inserts an empty slot; empty slots are filled from Drive (drag-drop on a computer, tap + choose on a phone); full tiles refuse drops.
+- **F1** Tiles (built on branch `f1-tiles`, PR open): "+" left/right of a full tile (hover on a computer, first tap on a phone) asks the date: left = same day or the day before, right = same day or the day after, or Vazgeç. Empty slots are filled from the Kütüphane panel (own panel: folder chips, Tümü / 4:5 / 9:16): drag on a computer, tap the slot + pick in order + Yerleştir on a phone. 1 image = post, 1 video = reel, 2+ = carousel in picked order. Full tiles refuse (red "Dolu"). Tiles store only Drive file ids; thumbnails load after sign-in.
 - **F2** Mode bar + move: Görüntüle · Ekle · Taşı · Sil, only the active mode's actions work; Sil has "Geri al".
 - **F4** Plan saved to Drive, the same on every device and person. Until then: "Yedeği indir / yükle".
 
