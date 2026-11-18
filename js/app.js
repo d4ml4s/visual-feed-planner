@@ -90,11 +90,13 @@
   }
 
   // ---------- grid ----------
-  function img(src, alt) {
+  // A missing file (e.g. the local media copy was removed) becomes a soft grey box with the post's title.
+  function img(src, alt, title) {
     var i = el('img');
     i.loading = 'lazy';
-    i.src = src;
     i.alt = alt || '';
+    i.onerror = function () { i.replaceWith(el('span', 'miss', title || 'Görsel yok')); };
+    i.src = src;
     return i;
   }
 
@@ -113,7 +115,7 @@
     } else if (t.kind === 'carousel') {
       tile.classList.add('car');
       var strip = el('div', 'strip');
-      images.forEach(function (im) { strip.appendChild(img(im.src, im.name)); });
+      images.forEach(function (im) { strip.appendChild(img(im.src, im.name, t.title)); });
       tile.appendChild(strip);
       tile.appendChild(el('span', 'ico'));
       var dots = el('span', 'dots');
@@ -127,7 +129,7 @@
       mark();
     } else {
       tile.classList.add(t.kind === 'reel' ? 'reel' : 'post');
-      tile.appendChild(img(images[0].src, images[0].name));
+      tile.appendChild(img(images[0].src, images[0].name, t.title));
       if (t.kind === 'reel') tile.appendChild(el('span', 'play'));
       if (t.match === 'same') tile.appendChild(el('span', 'badge same', 'Aynı ürün'));
       if (t.match === 'similar') tile.appendChild(el('span', 'badge sim', 'Benzer'));
