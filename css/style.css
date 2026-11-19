@@ -157,15 +157,17 @@ h1 { margin: 0; text-wrap: balance; }
 .lsize { display: flex; gap: 6px; flex: none; }
 .lsize button { border-color: var(--line); background: var(--soft); font-size: 12.5px; }
 .lsize button.on { border-color: var(--fg); }
-.lgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; align-content: start; }
+/* rows are never squeezed to the panel's height: each row is as tall as its boxes, the panel scrolls */
+.lgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: max-content; gap: 3px; align-content: start; }
 .lnote { grid-column: 1 / -1; color: var(--muted); font-size: 13px; margin: 8px 0; }
 .lnote.bad { color: var(--pink-d); font-weight: 600; }
 .lsec { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .03em; padding: 10px 2px 2px; border-top: 1px solid var(--line); }
 .lsec:first-child { border-top: 0; padding-top: 0; }
 .lmore { grid-column: 1 / -1; font: inherit; font-size: 13px; font-weight: 600; padding: 8px; margin: 2px 0 6px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--soft); cursor: pointer; }
 .lthumb.tall { aspect-ratio: 9 / 16; }
-.lthumb { all: unset; display: block; isolation: isolate; position: relative; aspect-ratio: 4 / 5; background: var(--soft); cursor: grab; overflow: hidden; }
-.lthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lthumb { all: unset; display: block; isolation: isolate; align-self: start; position: relative; aspect-ratio: 4 / 5; background: var(--soft); cursor: grab; overflow: hidden; }
+/* the picture is laid over the box, so a tall or large file can never stretch the box or overlap others */
+.lthumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .lthumb:focus-visible { outline: 3px solid var(--pink); outline-offset: -3px; }
 .lthumb.on { outline: 3px solid var(--pink); outline-offset: -3px; }
 .lthumb.on img { opacity: .8; }

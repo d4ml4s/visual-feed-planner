@@ -136,6 +136,35 @@
       .then(function (b) { return URL.createObjectURL(b); });
   }
 
+  // Show a Drive image in an <img>. Drive's preview link is tried first; some preview links only work
+  // with Google cookies, which browsers often block. Then the image itself is downloaded with the
+  // sign-in token instead (4 at a time, kept for this visit). Videos only have the preview.
+  var blobs = {}, queue = [], running = 0;
+  function pump() {
+    while (running < 4 && queue.length) {
+      var job = queue.shift();
+      running++;
+      fileUrl(job.id).then(function (u) { blobs[this.id] = u; this.ok(u); }.bind(job), job.no)
+        .then(function () { running--; pump(); });
+    }
+  }
+  function viaApi(id) {
+    if (blobs[id]) return Promise.resolve(blobs[id]);
+    return new Promise(function (ok, no) { queue.push({ id: id, ok: ok, no: no }); pump(); });
+  }
+  function paint(img, id, mime, size, onFail) {
+    var isImage = /^image\//.test(mime || 'image/');
+    var tried = false;
+    function fallback() {
+      if (tried || !isImage || !token) { onFail(); return; }
+      tried = true;
+      viaApi(id).then(function (u) { img.src = u; }, onFail);
+    }
+    img.onerror = fallback;
+    var t = blobs[id] || thumbUrl(id, size);
+    if (t) img.src = t; else fallback();
+  }
+
   window.Drive = {
     loadGis: loadGis,
     signIn: signIn,
@@ -144,6 +173,7 @@
     media: media,
     ensureThumbs: ensureThumbs,
     thumbUrl: thumbUrl,
-    fileUrl: fileUrl
+    fileUrl: fileUrl,
+    paint: paint
   };
 })();

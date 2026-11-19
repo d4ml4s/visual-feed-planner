@@ -144,14 +144,10 @@
     b.draggable = true;
     b.title = (it.path ? it.path + '/' : '') + it.name;
     if (/(^|\/)9-16(\/|$)/.test(it.path) || /9[x:-]16/i.test(it.name)) b.classList.add('tall');
-    var src = Drive.thumbUrl(it.id, 400);
-    if (src) {
-      var im = el('img');
-      im.alt = it.name; im.loading = 'lazy'; im.decoding = 'async'; im.draggable = false;
-      im.onerror = function () { im.replaceWith(el('span', 'lname', it.name)); };
-      im.src = src;
-      b.appendChild(im);
-    } else b.appendChild(el('span', 'lname', it.name));
+    var im = el('img');
+    im.alt = it.name; im.loading = 'lazy'; im.decoding = 'async'; im.draggable = false;
+    b.appendChild(im);
+    Drive.paint(im, it.id, it.mime, 400, function () { if (im.parentNode) im.replaceWith(el('span', 'lname', it.name)); });
     if (/^video\//.test(it.mime)) b.appendChild(el('span', 'lvid'));
     b.appendChild(el('span', 'lnum'));
     return b;

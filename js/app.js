@@ -102,6 +102,17 @@
   }
   function isVideo(im) { return /^video\//.test(im.mime || ''); }
 
+  // One picture: Drive files load through Drive.paint (preview, or the image itself if the preview is blocked).
+  function pic(im, size, title) {
+    if (!im.driveId) return img(im.src, im.name, title);
+    if (!(window.Drive && Drive.isSignedIn())) return el('span', 'miss', title || 'Görsel yok');
+    var i = el('img');
+    i.alt = im.name || '';
+    i.decoding = 'async';
+    Drive.paint(i, im.driveId, im.mime, size, function () { if (i.parentNode) i.replaceWith(el('span', 'miss', title || 'Görsel yok')); });
+    return i;
+  }
+
   // A missing file (no local copy, or Drive not connected yet) becomes a soft grey box with the post's title.
   function img(src, alt, title) {
     if (!src) return el('span', 'miss', title || 'Görsel yok');
@@ -128,7 +139,7 @@
     } else if (t.kind === 'carousel') {
       tile.classList.add('car');
       var strip = el('div', 'strip');
-      images.forEach(function (im) { strip.appendChild(img(srcOf(im, 600), im.name, missText(t, im))); });
+      images.forEach(function (im) { strip.appendChild(pic(im, 600, missText(t, im))); });
       tile.appendChild(strip);
       tile.appendChild(el('span', 'ico'));
       var dots = el('span', 'dots');
@@ -142,7 +153,7 @@
       mark();
     } else {
       tile.classList.add(t.kind === 'reel' ? 'reel' : 'post');
-      tile.appendChild(img(srcOf(images[0], 600), images[0].name, missText(t, images[0])));
+      tile.appendChild(pic(images[0], 600, missText(t, images[0])));
       if (t.kind === 'reel') tile.appendChild(el('span', 'play'));
       if (t.match === 'same') tile.appendChild(el('span', 'badge same', 'Aynı ürün'));
       if (t.match === 'similar') tile.appendChild(el('span', 'badge sim', 'Benzer'));
@@ -271,7 +282,7 @@
       var strip = el('div', 'vstrip');
       t.images.forEach(function (im) {
         var f = el('figure');
-        f.appendChild(img(srcOf(im, 1600), im.name, t.title));
+        f.appendChild(pic(im, 1600, t.title));
         f.appendChild(el('figcaption', null, im.name || ''));
         strip.appendChild(f);
       });
@@ -510,8 +521,10 @@
       if (linked && persist()) {
         render();
         toast('Doc 2 görselleri Drive\'a bağlandı: ' + linked + (missed ? ' · bulunamayan: ' + missed : ''), null, null, 5000);
+      } else if (missed) {
+        toast('Doc 2 görsellerinden ' + missed + ' tanesi Drive\'da bulunamadı.', null, null, 5000);
       }
-    }, function () {});
+    }, function (e) { toast('Doc 2 görselleri bağlanamadı: ' + e.message, null, null, 6000); });
   }
 
   // ---- clicks and keys on the grid ----
