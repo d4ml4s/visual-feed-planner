@@ -1,7 +1,7 @@
 /* Visual Feed Planner. Look carried over from Doc 2: white + black, Instagram-like 3-column 4:5 grid. */
 :root {
   --bg: #ffffff; --fg: #111111; --muted: #6b6b70; --line: #ebe9ee; --soft: #f3f2f5;
-  --pink: #E8435A; --pink-d: #B8243A; --same: #1B7D72; --sim: #8F6E00; --shade: rgba(10, 10, 12, .94);
+  --pink: #E8435A; --pink-d: #B8243A; --same: #1B7D72; --shade: rgba(10, 10, 12, .94);
   --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
   color-scheme: light;
 }
@@ -70,9 +70,6 @@ h1 { margin: 0; text-wrap: balance; }
 .dots { position: absolute; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 3px; pointer-events: none; }
 .dots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.55); box-shadow: 0 0 2px rgba(0,0,0,.35); }
 .dots i.on { background: #fff; }
-.badge { position: absolute; left: 5px; bottom: 5px; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: #fff; pointer-events: none; }
-.badge.same { background: var(--same); }
-.badge.sim { background: var(--sim); }
 .empty { background: transparent; border: 1.5px dashed #b9b6be; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
 .plus { font-size: 30px; line-height: 1; color: #b1aeb6; font-weight: 300; }
 .elbl { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--muted); text-align: center; padding-inline: 6px; line-height: 1.25; }

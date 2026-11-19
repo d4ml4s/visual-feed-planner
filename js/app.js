@@ -1,6 +1,7 @@
 /* Visual Feed Planner: renders the plan as the Doc 2 grid; F1 adds tiles and fills them from Drive.
  * Tile model: { id, kind: 'carousel'|'post'|'reel'|'empty', date: 'YYYY-MM-DD'|'', title,
- *               images: [{src, name} | {driveId, name, mime}], video?, match?: 'same'|'similar', style?, label?, note }
+ *               images: [{src, name} | {driveId, name, mime}], video?, style?, label?, note }
+ * Older plans may also carry match: 'same'|'similar'; it is no longer shown (Feature 3.1).
  * Local skeleton images use src; images placed from Drive store only the Drive file id.
  * archived: ISO time when the tile went to the archive (hidden from the grid, kept in the plan).
  */
@@ -161,8 +162,6 @@
       tile.classList.add(t.kind === 'reel' ? 'reel' : 'post');
       tile.appendChild(pic(images[0], 600, missText(t, images[0])));
       if (t.kind === 'reel') tile.appendChild(el('span', 'play'));
-      if (t.match === 'same') tile.appendChild(el('span', 'badge same', 'Aynı ürün'));
-      if (t.match === 'similar') tile.appendChild(el('span', 'badge sim', 'Benzer'));
     }
 
     if (d) tile.appendChild(el('span', 'date', chip(d)));
@@ -289,7 +288,7 @@
         }
       } else v.src = t.video;
       wrap.appendChild(v);
-      var cap = el('div', 'vcount', (t.images[0].name || '') + (t.match === 'same' ? ' · aynı ürün' : t.match === 'similar' ? ' · benzer ürün' : ''));
+      var cap = el('div', 'vcount', t.images[0].name || '');
       vbody.appendChild(wrap);
       vbody.appendChild(cap);
     } else {
