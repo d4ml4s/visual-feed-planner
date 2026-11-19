@@ -64,6 +64,7 @@ How features are named: **Feature N: short name**, and its parts **N.1, N.2…**
   (Called "F4" in older notes; the old "F3 Drive" became part of Feature 1.)
 
 ## Workflow
+0. Every change to a file the page loads: raise the `?v=` number on all links in `index.html` (browsers keep old copies otherwise).
 1. Plan → present → user approves → build → present → approve or update.
 2. One feature at a time. Finish and check it (phone 390 px + desktop 1280 px screenshots, checklist, no console errors) before starting the next.
 3. Commit and push each working feature.
