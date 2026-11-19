@@ -62,7 +62,9 @@ How features are named: **Feature N: short name**, and its parts **N.1, N.2…**
   - **2.2 Excel:** "Excel'e aktar" downloads `feed-plan-<date>.xlsx`: a readable "Plan" sheet (one row per tile) + a hidden "Yedek" sheet with the exact plan as JSON. "Excel'den yükle" restores only from that hidden copy (edits in the Plan sheet are not read), after showing what is in the file. SheetJS 0.20.3 from cdn.sheetjs.com with an integrity hash, loaded only when needed.
   - **2.3 Archive:** "×" on a full tile archives it (`archived` time on the tile; hidden from the grid, kept in the plan); on an empty tile it deletes it. Both offer "Geri al" for 7 seconds. The "Arşiv" list has "Geri getir" (back in its place) and "Sil" (for good; Geçmiş still has it).
   - **2.4 Plan start and end:** one-time tidy-up (plan version 2): tiles before 12 Nov 2026 archived, the undated empty last tile removed; the old state is kept in Geçmiş as "Güncellemeden önce". A "+ Yeni kutu" tile after the last tile adds at the end; the date question also has "Başka gün" (any date, e.g. a new month); "+" now shows on empty tiles too. Week tabs follow the dates (only shown tiles count).
-- **Feature 3: Feed fixes:** remove the "Aynı ürün" / "Benzer" labels; check the week ruler with new dates.
+- **Feature 3: Feed fixes** (branch `feature-3-feed-fixes`)
+  - **3.1 Labels removed:** no more "Aynı ürün" / "Benzer" on tiles or in the large view. The `match` data stays in saved plans, unused.
+  - **3.2 Week ruler follows the tiles:** tabs, the black week band and the pinned bar show the first to last tile date of each week ("H5 30 Kas–1 Ara", one day = "H7 14 Ara"); theme chips still use the calendar week. Weeks with no tiles get no tab. At the bottom of the page the last week is current, at the top the first; a tapped tab is current at once; the highlighted tab scrolls into view in the tab row.
 - **Feature 4: Mode bar and moving tiles:** Görüntüle · Ekle · Taşı · Sil, only the active mode's actions work; drag to move (long-press on a phone).
 - **Feature 5: Plan saved in Drive:** the same plan on every device and person. Until then: the Excel backup.
 
