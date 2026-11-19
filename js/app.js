@@ -157,6 +157,7 @@
     }
     tile.setAttribute('role', 'button');
     tile.tabIndex = 0;
+    tile.appendChild(delBtn());
     if (tile.classList.contains('empty')) {
       tile.setAttribute('aria-label', 'Boş kutu' + (d ? ' ' + chip(d) : '') + ': doldur');
     } else {
@@ -330,12 +331,43 @@
     catch (e) { toast('Kaydedilemedi: tarayıcı hafızası dolu.'); return false; }
   }
 
-  function toast(text) {
+  // Short notice at the bottom; optional button (e.g. "Geri al") with its own action.
+  function toast(text, actionLabel, action, ms) {
     var t = $('toast');
     t.textContent = text;
+    if (actionLabel) {
+      var b = el('button', null, actionLabel);
+      b.type = 'button';
+      b.addEventListener('click', function () { t.hidden = true; action(); });
+      t.appendChild(b);
+    }
     t.hidden = false;
     clearTimeout(toast.timer);
-    toast.timer = setTimeout(function () { t.hidden = true; }, 2600);
+    toast.timer = setTimeout(function () { t.hidden = true; }, ms || 2600);
+  }
+
+  // ---- 1.4 delete a tile, with "Geri al" ----
+  function delBtn() {
+    var b = el('button', 'del');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Kutuyu sil');
+    return b;
+  }
+
+  function removeTile(id) {
+    var i = indexOf(id);
+    if (i < 0) return;
+    var gone = plan.tiles.splice(i, 1)[0];
+    if (!persist()) { plan.tiles.splice(i, 0, gone); return; }
+    render();
+    toast('Kutu silindi.', 'Geri al', function () {
+      plan.tiles.splice(Math.min(i, plan.tiles.length), 0, gone);
+      if (persist()) {
+        render();
+        var n = document.querySelector('.tile[data-id="' + gone.id + '"]');
+        if (n) n.classList.add('fresh');
+      }
+    }, 7000);
   }
 
   // ---- insert: ask the date first ----
@@ -421,9 +453,66 @@
     return ids;
   }
   document.addEventListener('drive:signedin', function () {
-    var ids = driveIds();
-    if (ids.length) Drive.ensureThumbs(ids).then(render);
+    linkSkeleton().then(function () {
+      var ids = driveIds();
+      if (ids.length) return Drive.ensureThumbs(ids).then(render);
+    });
   });
+
+  // ---- Doc 2 skeleton → Drive ----
+  // The skeleton points at local copies (media/2026-11-14_04.jpg, media/v-<name>.mp4) that no longer exist.
+  // The same files are in the Drive library: carousel cards keep their day code at the start of the name
+  // ("2026-11-14_04_…_4-5.jpg"); videos have a product code in front ("BIL-12 Taşlı nazar bileklik - video.MP4").
+  // Once matched, the tile stores the Drive id and the local path is dropped.
+  function key(s) {
+    // NFKD splits "ş" into "s" + accent; dropping everything non-ASCII removes the accents (and "ı").
+    return s.normalize('NFKD').replace(/[^\x20-\x7e]/g, '')
+      .toLowerCase().replace(/i/g, '').replace(/[^a-z0-9]/g, '');
+  }
+  function videoKey(name) {           // Drive name → comparable key
+    return key(name.replace(/\.[^.]+$/, '').replace(/^[A-Z]{3}-[A-Z]?\d+\s+/, '')
+      .replace(/\s*-\s*video\s*$/i, '').replace(/\([^)]*\)/g, ''));
+  }
+  function docVideoKey(src) {         // "media/v-baget-yan-tasl-emerald-yuzuk-foto-1k9a9033.mp4" → key
+    var m = /v-([a-z0-9-]+)\.\w+$/.exec(src || '');
+    return m ? key(m[1].replace(/-foto-[a-z0-9]+$/, '')) : '';
+  }
+
+  function linkSkeleton() {
+    var todo = plan.tiles.filter(function (t) {
+      return (t.images || []).some(function (im) { return im.src && !im.driveId; });
+    });
+    if (!todo.length) return Promise.resolve();
+    return Drive.media(window.CONFIG.libraryFolderId).then(function (all) {
+      var cards = {}, videos = {};
+      all.forEach(function (f) {
+        var day = /^(\d{4}-\d{2}-\d{2}_\d{2})_/.exec(f.name);
+        if (day && /^image\//.test(f.mime) && (!cards[day[1]] || /4-5/.test(f.name + f.path))) cards[day[1]] = f;
+        if (/^video\//.test(f.mime)) videos[videoKey(f.name)] = f;
+      });
+      var linked = 0, missed = 0;
+      todo.forEach(function (t) {
+        if (t.kind === 'reel') {
+          var v = videos[docVideoKey(t.video || (t.images[0] && t.images[0].src))];
+          if (v) { t.images = [{ driveId: v.id, name: t.images[0].name || v.name, mime: v.mime }]; delete t.video; linked++; }
+          else missed++;
+          return;
+        }
+        t.images = t.images.map(function (im) {
+          if (!im.src || im.driveId) return im;
+          var m = /(\d{4}-\d{2}-\d{2}_\d{2})\.\w+$/.exec(im.src);
+          var f = m && cards[m[1]];
+          if (!f) { missed++; return im; }
+          linked++;
+          return { driveId: f.id, name: im.name, mime: f.mime };
+        });
+      });
+      if (linked && persist()) {
+        render();
+        toast('Doc 2 görselleri Drive\'a bağlandı: ' + linked + (missed ? ' · bulunamayan: ' + missed : ''), null, null, 5000);
+      }
+    }, function () {});
+  }
 
   // ---- clicks and keys on the grid ----
   function disarm(except) {
@@ -431,23 +520,25 @@
   }
 
   function activate(node) {
+    // Phone: the first tap shows the buttons (+ and ×), the second tap opens the tile.
+    if (touch && !node.classList.contains('armed')) { disarm(node); node.classList.add('armed'); return; }
     if (node.classList.contains('empty')) {
       if (window.Library) Library.open(node.dataset.id);
       return;
     }
-    // Phone: the first tap shows the "+" buttons, the second opens the post.
-    if (touch && !node.classList.contains('armed')) { disarm(node); node.classList.add('armed'); return; }
     open(node);
   }
 
   $('feed').addEventListener('click', function (e) {
     var add = e.target.closest('.add');
     if (add) { e.stopPropagation(); askDate(add.closest('.tile').dataset.id, add.dataset.side); return; }
+    var del = e.target.closest('.del');
+    if (del) { e.stopPropagation(); removeTile(del.closest('.tile').dataset.id); return; }
     var node = e.target.closest('.tile');
     if (node) activate(node);
   });
   $('feed').addEventListener('keydown', function (e) {
-    if (e.target.closest('.add')) return;
+    if (e.target.closest('.add, .del')) return;
     var node = e.target.closest('.tile');
     if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); disarm(); node.classList.add('armed'); open(node); }
   });

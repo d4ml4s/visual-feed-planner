@@ -82,6 +82,7 @@
 
   function pickFolder(id) {
     state.folder = id;
+    shown = {};
     Array.prototype.forEach.call(chips.children, function (c) { c.classList.toggle('on', c.dataset.id === id); });
     grid.textContent = '';
     grid.appendChild(el('p', 'lnote', 'Dosyalar yükleniyor…'));
@@ -102,24 +103,58 @@
     return it.path.split('/').indexOf(state.size) >= 0;
   }
 
+  // Files are grouped by subfolder ("4-5", "9-16", "Brass/4-5"…), each group in its own box shape,
+  // and only PAGE files per group are shown at first, so the panel doesn't load hundreds of previews at once.
+  var PAGE = 24;
+  var shown = {};   // group → how many are shown
+
   function drawGrid() {
     grid.textContent = '';
     var list = state.items.filter(inSize);
     if (!list.length) { grid.appendChild(el('p', 'lnote', 'Bu seçimde dosya yok.')); return; }
+    var groups = {}, order = [];
     list.forEach(function (it) {
-      var b = el('button', 'lthumb');
-      b.type = 'button';
-      b.dataset.id = it.id;
-      b.draggable = true;
-      b.title = (it.path ? it.path + '/' : '') + it.name;
-      var src = Drive.thumbUrl(it.id, 300);
-      if (src) { var im = el('img'); im.src = src; im.alt = it.name; im.loading = 'lazy'; im.draggable = false; b.appendChild(im); }
-      else b.appendChild(el('span', 'lname', it.name));
-      if (/^video\//.test(it.mime)) b.appendChild(el('span', 'lvid'));
-      b.appendChild(el('span', 'lnum'));
-      grid.appendChild(b);
+      var g = it.path || '';
+      if (!groups[g]) { groups[g] = []; order.push(g); }
+      groups[g].push(it);
+    });
+    order.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
+    order.forEach(function (g) {
+      var items = groups[g];
+      var head = el('div', 'lsec');
+      head.appendChild(el('span', null, g ? g.replace(/\//g, ' / ') : 'Klasörün kendisi'));
+      head.appendChild(el('span', null, String(items.length)));
+      grid.appendChild(head);
+      var n = Math.min(items.length, shown[g] || PAGE);
+      items.slice(0, n).forEach(function (it) { grid.appendChild(thumb(it)); });
+      if (n < items.length) {
+        var more = el('button', 'lmore', 'Daha fazla göster (' + (items.length - n) + ')');
+        more.type = 'button';
+        more.addEventListener('click', function () { shown[g] = n + PAGE * 2; drawGrid(); });
+        grid.appendChild(more);
+      }
     });
     paintPicked();
+  }
+
+  function thumb(it) {
+    var b = el('button', 'lthumb');
+    b.type = 'button';
+    b.dataset.id = it.id;
+    b.draggable = true;
+    b.title = (it.path ? it.path + '/' : '') + it.name;
+    if (/(^|\/)9-16(\/|$)/.test(it.path) || /9[x:-]16/i.test(it.name)) b.classList.add('tall');
+    var src = Drive.thumbUrl(it.id, 400);
+    if (src) {
+      var im = el('img');
+      im.alt = it.name; im.loading = 'lazy'; im.decoding = 'async'; im.draggable = false;
+      im.onerror = function () { im.replaceWith(el('span', 'lname', it.name)); };
+      im.src = src;
+      b.appendChild(im);
+    } else b.appendChild(el('span', 'lname', it.name));
+    if (/^video\//.test(it.mime)) b.appendChild(el('span', 'lvid'));
+    b.appendChild(el('span', 'lnum'));
+    return b;
   }
 
   // ---- picking (order matters: it becomes the carousel order) ----

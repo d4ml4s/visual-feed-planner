@@ -64,7 +64,9 @@ python tools/check.py <folder outside the repo> [URL] [--full]
   - 1.1 Add a tile: "+" left/right of a full tile, asks the date
   - 1.2 Library panel (Kütüphane): Drive folders, 4:5 / 9:16, pick in order
   - 1.3 Fill a tile: drag (computer) or tap + Yerleştir (phone); full tiles refuse
-- [ ] **Feature 2: Mode bar, move and delete:** 2.1 mode bar (Görüntüle · Ekle · Taşı · Sil), 2.2 move, 2.3 delete + Geri al
+  - 1.4 Delete a tile: "×" on the tile, with "Geri al"
+  - Doc 2 starting plan: its images and videos are linked to the Drive library after sign-in
+- [ ] **Feature 2: Mode bar, move and delete:** 2.1 mode bar (Görüntüle · Ekle · Taşı · Sil), 2.2 move, 2.3 Sil mode
 - [ ] **Feature 3: Plan saved in Drive:** the same plan on every device
 
 Naming: **Feature N** = one branch + one pull request; **N.1, N.2…** = its parts, one commit each (`Feature N.x: …`).

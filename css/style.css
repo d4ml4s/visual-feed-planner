@@ -100,12 +100,21 @@ h1 { margin: 0; text-wrap: balance; }
 .vvideo video { height: min(calc(100vh - 150px), 820px); max-width: 100%; aspect-ratio: 9 / 16; background: #000; }
 /* ---------- F1: add + fill ---------- */
 /* "+" on the left/right edge of a full tile: on hover (computer) or after one tap (phone) */
-.add { all: unset; position: absolute; top: 50%; z-index: 2; width: 34px; height: 34px; margin-top: -17px; border-radius: 50%; background: var(--fg); color: var(--bg); font-size: 22px; font-weight: 400; line-height: 34px; text-align: center; cursor: pointer; box-shadow: 0 0 0 2px var(--bg), 0 2px 8px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .12s; }
-.add.l { left: 4px; }
-.add.r { right: 4px; }
-.add:focus-visible { opacity: 1; pointer-events: auto; outline: 3px solid var(--pink); }
-@media (hover: hover) { .tile:hover .add { opacity: 1; pointer-events: auto; } }
-.tile.armed .add { opacity: 1; pointer-events: auto; }
+/* "+" (add) and "×" (delete): small round buttons, symbol drawn in CSS so it sits exactly in the middle */
+.add, .del { all: unset; position: absolute; z-index: 2; box-sizing: border-box; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 2px var(--bg), 0 1px 5px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .12s; font-size: 0; }
+.add { top: 50%; margin-top: -12px; background: var(--fg); }
+.add.l { left: 5px; }
+.add.r { right: 5px; }
+.del { right: 5px; bottom: 5px; background: var(--bg); }
+.add::before, .add::after, .del::before, .del::after { content: ""; position: absolute; left: 50%; top: 50%; width: 11px; height: 2px; margin: -1px 0 0 -5.5px; border-radius: 1px; background: var(--bg); }
+.add::after { transform: rotate(90deg); }
+.del::before, .del::after { background: var(--pink-d); transform: rotate(45deg); }
+.del::after { transform: rotate(-45deg); }
+.add:focus-visible, .del:focus-visible { opacity: 1; pointer-events: auto; outline: 3px solid var(--pink); }
+@media (hover: hover) { .tile:hover .add, .tile:hover .del { opacity: 1; pointer-events: auto; } }
+.tile.armed .add, .tile.armed .del { opacity: 1; pointer-events: auto; }
+/* on a phone the visible circle stays small, but the finger target is larger */
+@media (hover: none) { .add, .del { width: 28px; height: 28px; } .add { margin-top: -14px; } }
 .tile.armed { outline: 2px solid var(--fg); outline-offset: -2px; }
 .empty { cursor: pointer; }
 .empty:hover { border-color: var(--fg); }
@@ -151,7 +160,11 @@ h1 { margin: 0; text-wrap: balance; }
 .lgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; align-content: start; }
 .lnote { grid-column: 1 / -1; color: var(--muted); font-size: 13px; margin: 8px 0; }
 .lnote.bad { color: var(--pink-d); font-weight: 600; }
-.lthumb { all: unset; position: relative; aspect-ratio: 4 / 5; background: var(--soft); cursor: grab; overflow: hidden; }
+.lsec { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .03em; padding: 10px 2px 2px; border-top: 1px solid var(--line); }
+.lsec:first-child { border-top: 0; padding-top: 0; }
+.lmore { grid-column: 1 / -1; font: inherit; font-size: 13px; font-weight: 600; padding: 8px; margin: 2px 0 6px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--soft); cursor: pointer; }
+.lthumb.tall { aspect-ratio: 9 / 16; }
+.lthumb { all: unset; display: block; isolation: isolate; position: relative; aspect-ratio: 4 / 5; background: var(--soft); cursor: grab; overflow: hidden; }
 .lthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lthumb:focus-visible { outline: 3px solid var(--pink); outline-offset: -3px; }
 .lthumb.on { outline: 3px solid var(--pink); outline-offset: -3px; }
@@ -164,6 +177,7 @@ h1 { margin: 0; text-wrap: balance; }
 .lclear { font: inherit; font-size: 13px; background: none; border: 0; color: var(--muted); cursor: pointer; padding: 8px; }
 
 /* short notice at the bottom */
+.toast button { font: inherit; font-size: 14px; font-weight: 700; margin-left: 12px; padding: 4px 10px; border: 1.5px solid var(--bg); border-radius: 999px; background: none; color: var(--bg); cursor: pointer; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 40; background: var(--fg); color: var(--bg); font-size: 14px; font-weight: 600; padding: 10px 16px; border-radius: 999px; max-width: calc(100% - 32px); text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 body.lib-open .toast { bottom: calc(64vh + 12px); }
 @media (min-width: 761px) { body.lib-open .toast { bottom: 20px; left: calc(50% - 180px); } }

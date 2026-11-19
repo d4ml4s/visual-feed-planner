@@ -38,7 +38,7 @@ See `README.md` for structure and how to run it.
 
 ## Starting data
 - The app opens with the Doc 2 skeleton (tile order, dates, titles, images) from `data/seed.js`, made once by `tools/make_seed.py` from the old Doc 2 page. Saved edits in localStorage win over the skeleton.
-- The local `media/` copy was deleted (2026-11-18). Skeleton tiles keep their date, title and type, and show a grey box with the title until they are filled from Drive (Feature 1). `python tools/make_seed.py` can recreate `media/` from the old project if ever needed.
+- The local `media/` copy was deleted (2026-11-18). After "Drive'a bağlan" the skeleton's images and videos are linked to the same files in the Drive library (see Feature 1), so the skeleton shows the Doc 2 content again. Before sign-in, tiles show a grey box with the title.
 - On the published site there is no skeleton (it is never committed), so the grid is empty until Feature 3 brings the plan from Drive.
 
 ## Roadmap
@@ -51,10 +51,12 @@ How features are named: **Feature N: short name**, and its parts **N.1, N.2…**
   - **1.1 Add a tile:** "+" on the left/right of a full tile (hover on a computer, first tap on a phone). It asks the date: left = same day or the day before, right = same day or the day after, or Vazgeç.
   - **1.2 Library panel (Kütüphane):** our own panel, no API key: product folder chips, Tümü / 4:5 / 9:16, live thumbnails, pick in order.
   - **1.3 Fill a tile:** drag onto an empty tile (computer) or tap the tile + Yerleştir (phone). 1 image = post, 1 video = reel, 2+ = carousel in picked order. Full tiles refuse (red "Dolu"). Tiles store only Drive file ids; thumbnails load after sign-in.
+  - **1.4 Delete a tile:** small "×" at the bottom right (hover on a computer, first tap on a phone); a notice offers "Geri al" for 7 seconds. (Brought forward from Feature 2 at the user's request.)
+  - **Doc 2 → Drive:** after sign-in, skeleton tiles still pointing at the old local copies are linked once to the same files in the Drive library: carousel cards by their day code (`2026-11-14_04_…`), reels by product name (the Drive videos have a product code in front). Linked tiles keep only the Drive id.
 - **Feature 2: Mode bar, move and delete**
   - 2.1 Mode bar that never collapses: Görüntüle · Ekle · Taşı · Sil; only the active mode's actions work.
   - 2.2 Move (Taşı): drag any tile to a new place (long-press on a phone).
-  - 2.3 Delete (Sil) with "Geri al".
+  - 2.3 Sil mode: the "×" from 1.4 only works in Sil mode.
 - **Feature 3: Plan saved in Drive:** the same plan on every device and person. Until then: "Yedeği indir / yükle".
   (Called "F4" in older notes; the old "F3 Drive" became part of Feature 1.)
 
