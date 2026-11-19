@@ -221,10 +221,77 @@
       if (!link) throw new Error('no preview');
       return getBlob(link.replace(/=s\d+(-c)?$/, '') + '=s' + size);
     });
-    return viaPreview.catch(function (e) {
-      if (!isImage) throw e;                       // a video has no other small picture
-      return getBlob(API + '/' + id + '?alt=media&supportsAllDrives=true');
+    return viaPreview.catch(function () {
+      if (isImage) return getBlob(API + '/' + id + '?alt=media&supportsAllDrives=true');
+      return videoFrame(id);                       // a video: take its first frame ourselves
     }).then(function (b) { return shrink(b, size); });
+  }
+
+  // ---------- video cover without downloading the whole video ----------
+  // An MP4/MOV file is a row of boxes: ftyp, mdat (the picture data, almost the whole file), moov (the index).
+  // Phone and camera files keep the index at the END, so the first frame needs the start of the file AND
+  // the index. We fetch only those two parts (about 2 MB instead of ~25 MB), put them at their real
+  // positions in a blank file of the same size, and let the browser decode the first frame.
+  function range(id, from, to) {
+    return fetch(API + '/' + id + '?alt=media&supportsAllDrives=true', {
+      headers: { Authorization: 'Bearer ' + token, Range: 'bytes=' + from + '-' + to }
+    }).then(function (r) {
+      if (!r.ok) throw fail(r);
+      return r.arrayBuffer();
+    });
+  }
+  function boxes(buf, size) {          // top-level boxes: [{type, start, end}], as far as the bytes we have tell
+    var v = new DataView(buf), out = [], pos = 0;
+    while (pos + 8 <= buf.byteLength && pos < size) {
+      var n = v.getUint32(pos), type = String.fromCharCode(v.getUint8(pos + 4), v.getUint8(pos + 5), v.getUint8(pos + 6), v.getUint8(pos + 7));
+      if (n === 1) { if (pos + 16 > buf.byteLength) break; n = v.getUint32(pos + 8) * 4294967296 + v.getUint32(pos + 12); }
+      else if (n === 0) n = size - pos;
+      if (n < 8) break;
+      out.push({ type: type, start: pos, end: pos + n });
+      pos += n;
+    }
+    return { list: out, next: pos };
+  }
+  function frameOf(blob) {
+    return new Promise(function (res, rej) {
+      var v = document.createElement('video'), u = URL.createObjectURL(blob), done = false;
+      function end(err, b) { if (done) return; done = true; clearTimeout(timer); URL.revokeObjectURL(u); v.removeAttribute('src'); v.load(); err ? rej(err) : res(b); }
+      var timer = setTimeout(function () { end(new Error('video timeout')); }, 15000);
+      v.muted = true; v.playsInline = true; v.preload = 'auto';
+      v.onerror = function () { end(new Error('video decode')); };
+      v.onloadeddata = function () { v.currentTime = Math.min(0.1, (v.duration || 1) / 2); };
+      v.onseeked = function () {
+        try {
+          var c = document.createElement('canvas');
+          c.width = v.videoWidth; c.height = v.videoHeight;
+          c.getContext('2d').drawImage(v, 0, 0);
+          c.toBlob(function (b) { b ? end(null, b) : end(new Error('no frame')); }, 'image/jpeg', 0.9);
+        } catch (e) { end(e); }
+      };
+      v.src = u;
+    });
+  }
+  function videoFrame(id, headSize) {
+    var HEAD = headSize || 2 * 1048576;
+    return api('/' + id, { fields: 'size' }).then(function (meta) {
+      var size = Number(meta.size);
+      if (!size) throw new Error('no size');
+      return range(id, 0, Math.min(size, HEAD) - 1).then(function (head) {
+        var b = boxes(head, size);
+        var moov = b.list.filter(function (x) { return x.type === 'moov'; })[0];
+        if (moov && moov.end <= head.byteLength) return new Blob([head]);         // index at the start
+        if (moov) return range(id, head.byteLength, moov.end - 1).then(function (rest) { return new Blob([head, rest]); });
+        // Index after the picture data: find where it starts, fetch it, place it at its real position.
+        var at = b.next;
+        if (at >= size) throw new Error('no index');
+        return range(id, at, size - 1).then(function (tail) {
+          return new Blob([head, new ArrayBuffer(at - head.byteLength), tail]);
+        });
+      }).then(frameOf).catch(function (e) {
+        if (!headSize && size > HEAD) return videoFrame(id, 6 * 1048576);         // first frame needed more data
+        throw e;
+      });
+    });
   }
 
   var queue = [], running = 0, pending = {};

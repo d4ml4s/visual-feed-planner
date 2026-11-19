@@ -135,7 +135,14 @@
     } else if (t.kind === 'carousel') {
       tile.classList.add('car');
       var strip = el('div', 'strip');
-      images.forEach(function (im) { strip.appendChild(pic(im, 600, missText(t, im))); });
+      // A carousel can mix pictures and videos; a video slide shows its first frame with a ▶ mark.
+      images.forEach(function (im) {
+        if (!isVideo(im)) { strip.appendChild(pic(im, 600, missText(t, im))); return; }
+        var s = el('span', 'slide');
+        s.appendChild(pic(im, 600, missText(t, im)));
+        s.appendChild(el('span', 'vmark'));
+        strip.appendChild(s);
+      });
       tile.appendChild(strip);
       tile.appendChild(el('span', 'ico'));
       var dots = el('span', 'dots');
@@ -278,7 +285,14 @@
       var strip = el('div', 'vstrip');
       t.images.forEach(function (im) {
         var f = el('figure');
-        f.appendChild(pic(im, 1600, t.title));
+        if (im.driveId && isVideo(im)) {
+          // A video slide: cover first; the video itself loads when the slide is shown.
+          var sv = el('video');
+          sv.controls = true; sv.muted = true; sv.playsInline = true; sv.loop = true;
+          sv.dataset.id = im.driveId;
+          Drive.picture(im.driveId, im.mime, 1600).then(function (u) { sv.poster = u; }, function () {});
+          f.appendChild(sv);
+        } else f.appendChild(pic(im, 1600, t.title));
         f.appendChild(el('figcaption', null, im.name || ''));
         strip.appendChild(f);
       });
@@ -287,7 +301,19 @@
       vbody.appendChild(cnt);
       var small = node.querySelector('.strip');
       var start = small ? Math.round(small.scrollLeft / (small.clientWidth || 1)) : 0;
-      var upd = function () { cnt.textContent = (Math.round(strip.scrollLeft / (strip.clientWidth || 1)) + 1) + ' / ' + t.images.length; };
+      var upd = function () {
+        var i = Math.round(strip.scrollLeft / (strip.clientWidth || 1));
+        cnt.textContent = (i + 1) + ' / ' + t.images.length;
+        strip.querySelectorAll('video').forEach(function (sv, k) { if (sv.closest('figure') !== strip.children[i]) sv.pause(); });
+        var cur = strip.children[i] && strip.children[i].querySelector('video');
+        if (cur && !cur.dataset.blob && !cur.dataset.loading && Drive.isSignedIn()) {
+          cur.dataset.loading = '1';
+          Drive.fileUrl(cur.dataset.id).then(function (u) {
+            if (viewer.hidden) { URL.revokeObjectURL(u); return; }
+            cur.src = u; cur.dataset.blob = u; cur.play().catch(function () {});
+          }, function () { delete cur.dataset.loading; });
+        } else if (cur && cur.dataset.blob) cur.play().catch(function () {});
+      };
       strip.addEventListener('scroll', upd, { passive: true });
       viewer.hidden = false;
       strip.scrollLeft = start * strip.clientWidth;
@@ -300,8 +326,7 @@
 
   function close() {
     viewer.hidden = true;
-    var v = vbody.querySelector('video[data-blob]');
-    if (v) URL.revokeObjectURL(v.dataset.blob);
+    vbody.querySelectorAll('video[data-blob]').forEach(function (v) { v.pause(); URL.revokeObjectURL(v.dataset.blob); });
     vbody.textContent = '';
     document.body.style.overflow = '';
   }
