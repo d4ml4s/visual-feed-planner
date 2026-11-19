@@ -5,7 +5,7 @@ A visual planner for an Instagram-style feed. Tiles sit in a 3-column grid, and 
 **Live:** https://d4ml4s.github.io/visual-feed-planner/ (not indexed by search engines)
 
 - Plain HTML, CSS and JavaScript. No frameworks, no build step, no server.
-- The plan is saved in the browser (localStorage). Later it is also saved to Google Drive (F4).
+- The plan is saved in the browser (localStorage). Later it is also saved to Google Drive (Feature 3).
 - Media comes live from a shared Google Drive folder, read-only, after Google sign-in ("Drive'a bağlan"). No media is stored in this repo.
 - Only Google accounts added as test users can open the library. Anyone else sees an empty grid.
 
@@ -24,9 +24,9 @@ index.html          page shell (Turkish labels)
 css/style.css       look: white + black, 3-column 4:5 grid, week bands, large viewer
 js/storage.js       loads and saves the plan (localStorage); falls back to the local skeleton
 js/app.js           renders the grid, week tabs, pinned week bar and the large viewer
-js/config.js        Google client ID, API key, project number, library folder ID (public by design)
-js/drive.js         Google sign-in (read-only) and reading the library folder
-js/library.js       the "Drive'a bağlan" button and the library overview
+js/config.js        Google client ID + library folder ID (public by design; no API key)
+js/drive.js         Google sign-in (read-only), folder listing, thumbnails, video files
+js/library.js       the Kütüphane panel: folders, 4:5 / 9:16 filter, pick in order, drag or Yerleştir
 tools/make_seed.py  one-off: builds a local starting skeleton from an older project page
 tools/check.py      feature check: phone (390 px) + desktop (1280 px) screenshots, console errors
 .claude/skills/     project skill "check-feature" (the check routine before every commit)
@@ -43,9 +43,9 @@ python tools/check.py <folder outside the repo> [URL] [--full]
 
 ## Google setup (done once)
 
-- Google Cloud project with the Drive API and Picker API turned on.
+- Google Cloud project with the Drive API turned on.
 - OAuth consent screen in **Testing** mode; the users who may sign in are added as test users.
-- A web OAuth client (no client secret is used) and an API key, both restricted to `http://localhost:8000` and `https://d4ml4s.github.io`.
+- A web OAuth client restricted to `http://localhost:8000` and `https://d4ml4s.github.io`. No client secret and no API key are used.
 - Scope: `drive.readonly`. The app can see files, never change them.
 
 ## Plan data
@@ -60,9 +60,17 @@ python tools/check.py <folder outside the repo> [URL] [--full]
 
 - [x] Git, Google Drive connection, public repo + GitHub Pages
 - [x] Project skills: feature check with phone + desktop screenshots
-- [ ] **F1 Tiles:** "+" left/right of a tile inserts an empty slot. Empty slots are filled from Drive (drag-drop on a computer, tap + choose on a phone). Full tiles refuse drops.
-- [ ] **F2 Mode bar + move:** Görüntüle · Ekle · Taşı · Sil.
-- [ ] **F4 Plan in Drive:** the same plan on every device.
+- [ ] **Feature 1: Add and fill tiles** (in review)
+  - 1.1 Add a tile: "+" left/right of a full tile, asks the date
+  - 1.2 Library panel (Kütüphane): Drive folders, 4:5 / 9:16, pick in order
+  - 1.3 Fill a tile: drag (computer) or tap + Yerleştir (phone); full tiles refuse
+  - 1.4 Delete a tile: "×" on the tile, with "Geri al"
+  - Doc 2 starting plan: its images and videos are linked to the Drive library after sign-in
+  - 1.5 Picture memory: pictures are kept (small) in the browser and show at once next time; a refresh keeps the sign-in
+- [ ] **Feature 2: Mode bar, move and delete:** 2.1 mode bar (Görüntüle · Ekle · Taşı · Sil), 2.2 move, 2.3 Sil mode
+- [ ] **Feature 3: Plan saved in Drive:** the same plan on every device
+
+Naming: **Feature N** = one branch + one pull request; **N.1, N.2…** = its parts, one commit each (`Feature N.x: …`).
 
 ## Workflow
 

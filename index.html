@@ -8,20 +8,19 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Crect width='30' height='30' rx='6' fill='%23111'/%3E%3Cg fill='%23fff'%3E%3Crect x='5' y='5' width='6' height='6'/%3E%3Crect x='12' y='5' width='6' height='6'/%3E%3Crect x='19' y='5' width='6' height='6'/%3E%3Crect x='5' y='12' width='6' height='6'/%3E%3Crect x='12' y='12' width='6' height='6'/%3E%3Crect x='19' y='12' width='6' height='6' fill='%23E8435A'/%3E%3Crect x='5' y='19' width='6' height='6'/%3E%3Crect x='12' y='19' width='6' height='6'/%3E%3C/g%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=1.7">
 </head>
 <body>
   <div class="wrap">
     <header class="top">
       <h1>Visual Feed Planner</h1>
-      <p class="sub">Paylaşımların sırası, gün gün. Bir kutuya dokun, büyük aç.</p>
+      <p class="sub">Paylaşımların sırası, gün gün. Boş kutuya dokun, Drive'dan doldur.</p>
       <div class="key"><span>Carousel</span><span>Reel</span><span>Boş kutu</span></div>
       <section class="drive" aria-label="Google Drive kütüphanesi">
         <div class="drow">
           <button class="dbtn" id="dconnect" type="button">Drive'a bağlan</button>
           <span class="dstatus" id="dstatus" role="status">Görseller Google Drive'dan gelir.</span>
         </div>
-        <ul class="dlist" id="dlist" hidden></ul>
       </section>
     </header>
     <nav class="tabs" id="tabs" aria-label="Haftalar"></nav>
@@ -38,12 +37,42 @@
     <div class="vbody" id="vbody"></div>
   </div>
 
+  <aside class="lib" id="lib" hidden aria-label="Kütüphane">
+    <div class="lhead">
+      <div><b>Kütüphane</b><span id="ltarget"></span></div>
+      <button class="lclose" id="lclose" type="button">Kapat ✕</button>
+    </div>
+    <div class="lchips" id="lfolders"></div>
+    <div class="lsize" id="lsize" role="group" aria-label="Boyut">
+      <button type="button" class="on" data-size="all">Tümü</button>
+      <button type="button" data-size="4-5">4:5 gönderi</button>
+      <button type="button" data-size="9-16">9:16 reel</button>
+    </div>
+    <div class="lgrid" id="lgrid"></div>
+    <div class="lfoot">
+      <span id="lcount">Dosya seç</span>
+      <button class="lclear" id="lclear" type="button" hidden>Temizle</button>
+      <button class="dbtn" id="lplace" type="button" disabled>Yerleştir</button>
+    </div>
+  </aside>
+
+  <div class="ask" id="ask" hidden role="dialog" aria-modal="true" aria-labelledby="ask-title">
+    <div class="abox">
+      <b id="ask-title">Yeni kutu</b>
+      <p>Hangi gün?</p>
+      <div class="aopts" id="ask-opts"></div>
+      <button class="acancel" id="ask-cancel" type="button">Vazgeç</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden role="status"></div>
+
   <!-- Local Doc 2 skeleton (gitignored). Missing on the published site until F4 brings the plan from Drive. -->
-  <script src="data/seed.js" onerror="window.SEED = null"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/config.js"></script>
-  <script src="js/drive.js"></script>
-  <script src="js/library.js"></script>
+  <script src="data/seed.js?v=1.7" onerror="window.SEED = null"></script>
+  <script src="js/storage.js?v=1.7"></script>
+  <script src="js/config.js?v=1.7"></script>
+  <script src="js/drive.js?v=1.7"></script>
+  <script src="js/app.js?v=1.7"></script>
+  <script src="js/library.js?v=1.7"></script>
 </body>
 </html>
