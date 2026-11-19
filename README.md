@@ -5,7 +5,7 @@ A visual planner for an Instagram-style feed. Tiles sit in a 3-column grid, and 
 **Live:** https://d4ml4s.github.io/visual-feed-planner/ (not indexed by search engines)
 
 - Plain HTML, CSS and JavaScript. No frameworks, no build step, no server.
-- The plan is saved in the browser (localStorage). Later it is also saved to Google Drive (F4).
+- The plan is saved in the browser (localStorage). Later it is also saved to Google Drive (Feature 3).
 - Media comes live from a shared Google Drive folder, read-only, after Google sign-in ("Drive'a bağlan"). No media is stored in this repo.
 - Only Google accounts added as test users can open the library. Anyone else sees an empty grid.
 
@@ -60,9 +60,14 @@ python tools/check.py <folder outside the repo> [URL] [--full]
 
 - [x] Git, Google Drive connection, public repo + GitHub Pages
 - [x] Project skills: feature check with phone + desktop screenshots
-- [ ] **F1 Tiles** (in review): "+" left/right of a full tile inserts an empty slot after asking the date. Empty slots are filled from the Kütüphane panel (drag on a computer, tap + Yerleştir on a phone). Full tiles refuse.
-- [ ] **F2 Mode bar + move:** Görüntüle · Ekle · Taşı · Sil.
-- [ ] **F4 Plan in Drive:** the same plan on every device.
+- [ ] **Feature 1: Add and fill tiles** (in review)
+  - 1.1 Add a tile: "+" left/right of a full tile, asks the date
+  - 1.2 Library panel (Kütüphane): Drive folders, 4:5 / 9:16, pick in order
+  - 1.3 Fill a tile: drag (computer) or tap + Yerleştir (phone); full tiles refuse
+- [ ] **Feature 2: Mode bar, move and delete:** 2.1 mode bar (Görüntüle · Ekle · Taşı · Sil), 2.2 move, 2.3 delete + Geri al
+- [ ] **Feature 3: Plan saved in Drive:** the same plan on every device
+
+Naming: **Feature N** = one branch + one pull request; **N.1, N.2…** = its parts, one commit each (`Feature N.x: …`).
 
 ## Workflow
 

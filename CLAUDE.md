@@ -9,7 +9,7 @@ See `README.md` for structure and how to run it.
 
 ## Tech (fixed)
 - Only HTML, CSS and JavaScript. No frameworks, no build step, no database.
-- No server of our own. The plan (tile order, dates, titles, which file is in which tile) lives in the browser's localStorage, and later also as one plan file in Google Drive (F4), so a cleared cache loses nothing.
+- No server of our own. The plan (tile order, dates, titles, which file is in which tile) lives in the browser's localStorage, and later also as one plan file in Google Drive (Feature 3), so a cleared cache loses nothing.
 - Media lives in one shared Google Drive folder that the app reads live (browser → Google directly, Google sign-in). The Library = what is in that folder right now. Media files are never copied into this repo.
 - Google connection (working): a Google Cloud project in Testing mode, read-only scope `drive.readonly`, test users = the user's Google accounts. `js/config.js` holds only the client ID and the library folder ID (public by design). No API key is used: the library is our own panel, not Google's Picker. Both are locked to `http://localhost:8000` and `https://d4ml4s.github.io`. The sign-in token stays in memory only (about 1 hour), never saved. Users need to sign in again after that, and Google may ask again about once a week in Testing mode.
 - The library folder has one folder per product, each with `4-5` (posts/carousels) and `9-16` (reels) subfolders.
@@ -38,14 +38,25 @@ See `README.md` for structure and how to run it.
 
 ## Starting data
 - The app opens with the Doc 2 skeleton (tile order, dates, titles, images) from `data/seed.js`, made once by `tools/make_seed.py` from the old Doc 2 page. Saved edits in localStorage win over the skeleton.
-- The local `media/` copy was deleted (2026-11-18). Skeleton tiles keep their date, title and type, and show a grey box with the title until they are filled from Drive (F1). `python tools/make_seed.py` can recreate `media/` from the old project if ever needed.
-- On the published site there is no skeleton (it is never committed), so the grid is empty until F4 brings the plan from Drive.
+- The local `media/` copy was deleted (2026-11-18). Skeleton tiles keep their date, title and type, and show a grey box with the title until they are filled from Drive (Feature 1). `python tools/make_seed.py` can recreate `media/` from the old project if ever needed.
+- On the published site there is no skeleton (it is never committed), so the grid is empty until Feature 3 brings the plan from Drive.
 
 ## Roadmap
-- Setup: Git ✓ → Google Drive connection (read-only, "Drive'a bağlan" shows the library) ✓ → GitHub repo (public) + Pages ✓ → project skills ✓ (`.claude/skills/check-feature` + `tools/check.py`, Playwright for Python using the installed Chrome). UI skills already available: `frontend-design`, `design-skills:design-critique`, `interaction-design`, `accessibility-audit`, `ux-writing`.
-- **F1** Tiles (built on branch `f1-tiles`, PR open): "+" left/right of a full tile (hover on a computer, first tap on a phone) asks the date: left = same day or the day before, right = same day or the day after, or Vazgeç. Empty slots are filled from the Kütüphane panel (own panel: folder chips, Tümü / 4:5 / 9:16): drag on a computer, tap the slot + pick in order + Yerleştir on a phone. 1 image = post, 1 video = reel, 2+ = carousel in picked order. Full tiles refuse (red "Dolu"). Tiles store only Drive file ids; thumbnails load after sign-in.
-- **F2** Mode bar + move: Görüntüle · Ekle · Taşı · Sil, only the active mode's actions work; Sil has "Geri al".
-- **F4** Plan saved to Drive, the same on every device and person. Until then: "Yedeği indir / yükle".
+
+How features are named: **Feature N: short name**, and its parts **N.1, N.2…** Each part is one commit
+(message starts with `Feature N.x:`). A whole feature is one branch `feature-N-name` and one pull request.
+
+- Setup (done): Git, Google Drive connection (read-only), public repo + Pages, project skills (`.claude/skills/check-feature` + `tools/check.py`, Playwright for Python using the installed Chrome). UI skills already available: `frontend-design`, `design-skills:design-critique`, `interaction-design`, `accessibility-audit`, `ux-writing`.
+- **Feature 1: Add and fill tiles** (built, PR #1 in review, branch `f1-tiles`)
+  - **1.1 Add a tile:** "+" on the left/right of a full tile (hover on a computer, first tap on a phone). It asks the date: left = same day or the day before, right = same day or the day after, or Vazgeç.
+  - **1.2 Library panel (Kütüphane):** our own panel, no API key: product folder chips, Tümü / 4:5 / 9:16, live thumbnails, pick in order.
+  - **1.3 Fill a tile:** drag onto an empty tile (computer) or tap the tile + Yerleştir (phone). 1 image = post, 1 video = reel, 2+ = carousel in picked order. Full tiles refuse (red "Dolu"). Tiles store only Drive file ids; thumbnails load after sign-in.
+- **Feature 2: Mode bar, move and delete**
+  - 2.1 Mode bar that never collapses: Görüntüle · Ekle · Taşı · Sil; only the active mode's actions work.
+  - 2.2 Move (Taşı): drag any tile to a new place (long-press on a phone).
+  - 2.3 Delete (Sil) with "Geri al".
+- **Feature 3: Plan saved in Drive:** the same plan on every device and person. Until then: "Yedeği indir / yükle".
+  (Called "F4" in older notes; the old "F3 Drive" became part of Feature 1.)
 
 ## Workflow
 1. Plan → present → user approves → build → present → approve or update.
