@@ -1,5 +1,6 @@
 /* Google Drive connection (read-only). Browser → Google directly; no server, no API key.
-   The access token lives only in memory and expires after about an hour. */
+   The access token is kept for this browser tab only (sessionStorage), so a refresh doesn't sign you out.
+   It expires after about an hour; then one click on "Drive'a bağlan" renews it. */
 (function () {
   'use strict';
   var C = window.CONFIG || {};
@@ -7,6 +8,18 @@
   var FOLDER = 'application/vnd.google-apps.folder';
   var API = 'https://www.googleapis.com/drive/v3/files';
   var token = null, client = null, gisReady = null;
+  var TOK = 'vfp.drive.token';
+
+  // Restore the sign-in after a refresh (same tab only, until it expires).
+  try {
+    var saved = JSON.parse(sessionStorage.getItem(TOK) || 'null');
+    if (saved && saved.exp > Date.now() + 60000) token = saved.t;
+    else sessionStorage.removeItem(TOK);
+  } catch (e) {}
+  if (token) {
+    document.addEventListener('DOMContentLoaded', function () { document.dispatchEvent(new CustomEvent('drive:signedin')); });
+  }
+  function forget() { token = null; try { sessionStorage.removeItem(TOK); } catch (e) {} }
   var thumbs = {};          // Drive file id → thumbnailLink (short-lived, kept in memory only)
   var folderCache = {};     // folder id → media list
 
@@ -36,6 +49,7 @@
       client.callback = function (r) {
         if (r && r.access_token) {
           token = r.access_token;
+          try { sessionStorage.setItem(TOK, JSON.stringify({ t: token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000 })); } catch (e) {}
           document.dispatchEvent(new CustomEvent('drive:signedin'));
           res();
         } else rej(new Error('Giriş yapılamadı.'));
@@ -48,7 +62,7 @@
   }
 
   function fail(r) {
-    if (r.status === 401) { token = null; return new Error('Oturum süresi doldu. Tekrar bağlan.'); }
+    if (r.status === 401) { forget(); return new Error('Oturum süresi doldu. Tekrar bağlan.'); }
     if (r.status === 403 || r.status === 404) return new Error('Bu dosyaya erişim yok. Kütüphanenin sahibi olan hesapla mı giriş yaptın?');
     return new Error('Drive hatası (' + r.status + ').');
   }
@@ -136,33 +150,129 @@
       .then(function (b) { return URL.createObjectURL(b); });
   }
 
-  // Show a Drive image in an <img>. Drive's preview link is tried first; some preview links only work
-  // with Google cookies, which browsers often block. Then the image itself is downloaded with the
-  // sign-in token instead (4 at a time, kept for this visit). Videos only have the preview.
-  var blobs = {}, queue = [], running = 0;
+  // ---------- pictures ----------
+  // Every picture is shrunk to a small copy and kept in the browser (IndexedDB), so next time the grid
+  // shows it at once, even before sign-in. Two sizes: 600 px (grid + library) and 1600 px (large view).
+  // Loading a new picture: Google's small preview (with the sign-in) first; if the browser refuses it,
+  // the image file itself. Only pictures that are on screen are loaded, 6 at a time.
+  var urls = {};                 // cache key → object URL (this visit)
+  var dbp = null;
+  function db() {
+    if (dbp) return dbp;
+    dbp = new Promise(function (res) {
+      try {
+        var r = indexedDB.open('vfp-pictures', 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore('p'); };
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { res(null); };
+      } catch (e) { res(null); }
+    });
+    return dbp;
+  }
+  function idbGet(k) {
+    return db().then(function (d) {
+      if (!d) return null;
+      return new Promise(function (res) {
+        try {
+          var q = d.transaction('p').objectStore('p').get(k);
+          q.onsuccess = function () { res(q.result || null); };
+          q.onerror = function () { res(null); };
+        } catch (e) { res(null); }
+      });
+    });
+  }
+  function idbPut(k, v) {
+    db().then(function (d) { try { if (d) d.transaction('p', 'readwrite').objectStore('p').put(v, k); } catch (e) {} });
+  }
+
+  function bucket(size) { return size > 600 ? 1600 : 600; }
+
+  function shrink(blob, size) {
+    if (!window.createImageBitmap) return Promise.resolve(blob);
+    return createImageBitmap(blob).then(function (bm) {
+      var k = Math.min(1, size / Math.max(bm.width, bm.height));
+      if (k === 1 && blob.size < 300000) return blob;
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(bm.width * k));
+      c.height = Math.max(1, Math.round(bm.height * k));
+      c.getContext('2d').drawImage(bm, 0, 0, c.width, c.height);
+      return new Promise(function (res) { c.toBlob(function (b) { res(b || blob); }, 'image/jpeg', 0.85); });
+    }).catch(function () { return blob; });
+  }
+
+  function getBlob(url) {
+    return fetch(url, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
+      if (!r.ok) throw fail(r);
+      return r.blob();
+    });
+  }
+
+  function thumbLink(id) {
+    if (thumbs[id]) return Promise.resolve(thumbs[id]);
+    return api('/' + id, { fields: 'id, thumbnailLink' }).then(function (f) {
+      if (f.thumbnailLink) thumbs[id] = f.thumbnailLink;
+      return f.thumbnailLink || '';
+    });
+  }
+
+  function download(id, mime, size) {
+    var isImage = /^image\//.test(mime || 'image/');
+    var viaPreview = thumbLink(id).then(function (link) {
+      if (!link) throw new Error('no preview');
+      return getBlob(link.replace(/=s\d+(-c)?$/, '') + '=s' + size);
+    });
+    return viaPreview.catch(function (e) {
+      if (!isImage) throw e;                       // a video has no other small picture
+      return getBlob(API + '/' + id + '?alt=media&supportsAllDrives=true');
+    }).then(function (b) { return shrink(b, size); });
+  }
+
+  var queue = [], running = 0, pending = {};
   function pump() {
-    while (running < 4 && queue.length) {
+    while (running < 6 && queue.length) {
       var job = queue.shift();
       running++;
-      fileUrl(job.id).then(function (u) { blobs[this.id] = u; this.ok(u); }.bind(job), job.no)
-        .then(function () { running--; pump(); });
+      download(job.id, job.mime, job.size).then(function (b) {
+        idbPut(this.key, b);
+        urls[this.key] = URL.createObjectURL(b);
+        this.ok(urls[this.key]);
+      }.bind(job), job.no).then(function () { running--; pump(); });
     }
   }
-  function viaApi(id) {
-    if (blobs[id]) return Promise.resolve(blobs[id]);
-    return new Promise(function (ok, no) { queue.push({ id: id, ok: ok, no: no }); pump(); });
+
+  // Object URL of a picture: from this visit, from the browser's memory, or loaded from Drive.
+  function picture(id, mime, size) {
+    var key = id + '@' + bucket(size);
+    if (urls[key]) return Promise.resolve(urls[key]);
+    if (pending[key]) return pending[key];
+    pending[key] = idbGet(key).then(function (b) {
+      if (b) { urls[key] = URL.createObjectURL(b); return urls[key]; }
+      if (!token) throw new Error('signin');
+      return new Promise(function (ok, no) { queue.push({ id: id, mime: mime, size: bucket(size), key: key, ok: ok, no: no }); pump(); });
+    });
+    pending[key].catch(function () {}).then(function () { delete pending[key]; });
+    return pending[key];
+  }
+
+  // Fill an <img> when it comes near the screen. onFail(err) runs if there is no way to show it.
+  var watch = null, jobs = new WeakMap();
+  function start(img) {
+    var j = jobs.get(img);
+    if (!j) return;
+    jobs.delete(img);
+    picture(j.id, j.mime, j.size).then(function (u) { img.src = u; }, j.onFail);
   }
   function paint(img, id, mime, size, onFail) {
-    var isImage = /^image\//.test(mime || 'image/');
-    var tried = false;
-    function fallback() {
-      if (tried || !isImage || !token) { onFail(); return; }
-      tried = true;
-      viaApi(id).then(function (u) { img.src = u; }, onFail);
+    var key = id + '@' + bucket(size);
+    if (urls[key]) { img.src = urls[key]; return; }
+    jobs.set(img, { id: id, mime: mime, size: size, onFail: onFail || function () {} });
+    if (!('IntersectionObserver' in window)) { start(img); return; }
+    if (!watch) {
+      watch = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { if (en.isIntersecting) { watch.unobserve(en.target); start(en.target); } });
+      }, { rootMargin: '400px' });
     }
-    img.onerror = fallback;
-    var t = blobs[id] || thumbUrl(id, size);
-    if (t) img.src = t; else fallback();
+    watch.observe(img);
   }
 
   window.Drive = {
@@ -174,6 +284,7 @@
     ensureThumbs: ensureThumbs,
     thumbUrl: thumbUrl,
     fileUrl: fileUrl,
+    picture: picture,
     paint: paint
   };
 })();

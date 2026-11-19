@@ -91,11 +91,6 @@
   }
 
   // ---------- grid ----------
-  // Where an image comes from: the local skeleton (src) or Drive (thumbnail, needs sign-in).
-  function srcOf(im, size) {
-    if (im.driveId) return window.Drive ? Drive.thumbUrl(im.driveId, size) : '';
-    return im.src || '';
-  }
   function missText(t, im) {
     if (im.driveId && !(window.Drive && Drive.isSignedIn())) return (t.title ? t.title + ' · ' : '') + "Görmek için Drive'a bağlan";
     return t.title;
@@ -105,9 +100,10 @@
   // One picture: Drive files load through Drive.paint (preview, or the image itself if the preview is blocked).
   function pic(im, size, title) {
     if (!im.driveId) return img(im.src, im.name, title);
-    if (!(window.Drive && Drive.isSignedIn())) return el('span', 'miss', title || 'Görsel yok');
+    if (!window.Drive) return el('span', 'miss', title || 'Görsel yok');
+    // Remembered pictures show at once; others load from Drive when signed in.
     var i = el('img');
-    i.alt = im.name || '';
+    i.alt = '';
     i.decoding = 'async';
     Drive.paint(i, im.driveId, im.mime, size, function () { if (i.parentNode) i.replaceWith(el('span', 'miss', title || 'Görsel yok')); });
     return i;
@@ -266,7 +262,7 @@
       var v = el('video');
       v.controls = true; v.muted = true; v.playsInline = true; v.autoplay = true; v.loop = true;
       if (driveVideo) {
-        v.poster = srcOf(t.images[0], 1200);
+        Drive.picture(t.images[0].driveId, t.images[0].mime, 1600).then(function (u) { v.poster = u; }, function () {});
         if (Drive.isSignedIn()) {
           Drive.fileUrl(t.images[0].driveId).then(function (u) {
             if (viewer.hidden) { URL.revokeObjectURL(u); return; }
@@ -464,10 +460,8 @@
     return ids;
   }
   document.addEventListener('drive:signedin', function () {
-    linkSkeleton().then(function () {
-      var ids = driveIds();
-      if (ids.length) return Drive.ensureThumbs(ids).then(render);
-    });
+    // Redraw so tiles that were waiting for the sign-in load their pictures now.
+    linkSkeleton().then(render);
   });
 
   // ---- Doc 2 skeleton → Drive ----

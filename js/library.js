@@ -11,6 +11,8 @@
   var state = { folders: null, folder: null, size: 'all', items: [], picked: [], target: null };
 
   Drive.loadGis().catch(function (e) { say(e.message, true); });
+  // Signed in (also restored after a refresh): the header button becomes "Kütüphane".
+  document.addEventListener('drive:signedin', function () { btn.textContent = 'Kütüphane'; say('Bağlandı'); });
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -118,7 +120,8 @@
       if (!groups[g]) { groups[g] = []; order.push(g); }
       groups[g].push(it);
     });
-    order.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
+    // Subfolders first (small ready-made sizes), the folder's own files (often large originals) last.
+    order.sort(function (a, b) { return (a === '') - (b === '') || a.localeCompare(b, 'tr'); });
     order.forEach(function (g) {
       var items = groups[g];
       var head = el('div', 'lsec');
