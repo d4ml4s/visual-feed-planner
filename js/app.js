@@ -2,7 +2,7 @@
  * Tile model: { id, kind: 'carousel'|'post'|'reel'|'empty', date: 'YYYY-MM-DD'|'', title,
  *               images: [{src, name} | {driveId, name, mime}], video?, match?: 'same'|'similar', style?, label?, note }
  * Local skeleton images use src; images placed from Drive store only the Drive file id.
- * Move and delete arrive with F2.
+ * archived: ISO time when the tile went to the archive (hidden from the grid, kept in the plan).
  */
 (function () {
   'use strict';
@@ -49,13 +49,16 @@
 
   // ---------- weeks ----------
   /** Groups tiles into weeks. Undated tiles belong to the week of the tile before them. */
+  function shown() { return plan.tiles.filter(function (t) { return !t.archived; }); }
+
   function weeks() {
-    var dated = plan.tiles.map(function (t) { return parse(t.date); }).filter(Boolean);
+    var tiles = shown();
+    var dated = tiles.map(function (t) { return parse(t.date); }).filter(Boolean);
     if (!dated.length) return { byTile: {}, list: [] };
     var start = new Date(Math.min.apply(null, dated));
     var zero = parse(plan.weekZero) || monday(start);
     var byTile = {}, list = [], seen = {}, cur = null;
-    plan.tiles.forEach(function (t) {
+    tiles.forEach(function (t) {
       var d = parse(t.date);
       if (d) {
         var mon = monday(d);
@@ -171,13 +174,13 @@
     }
     tile.setAttribute('role', 'button');
     tile.tabIndex = 0;
-    tile.appendChild(delBtn());
+    tile.appendChild(delBtn(tile.classList.contains('empty')));
+    tile.appendChild(addBtn('l', 'Soluna boş kutu ekle'));
+    tile.appendChild(addBtn('r', 'Sağına boş kutu ekle'));
     if (tile.classList.contains('empty')) {
       tile.setAttribute('aria-label', 'Boş kutu' + (d ? ' ' + chip(d) : '') + ': doldur');
     } else {
       tile.draggable = false;
-      tile.appendChild(addBtn('l', 'Soluna boş kutu ekle'));
-      tile.appendChild(addBtn('r', 'Sağına boş kutu ekle'));
       tile.setAttribute('aria-label', (t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi') + (d ? ' ' + chip(d) : '') + (t.title ? ': ' + t.title : ''));
     }
     return tile;
@@ -187,8 +190,16 @@
     var wk = weeks();
     var feed = $('feed');
     feed.textContent = '';
-    plan.tiles.forEach(function (t) { feed.appendChild(renderTile(t, wk.byTile[t.id])); });
-    $('empty-plan').hidden = plan.tiles.length > 0;
+    var tiles = shown();
+    tiles.forEach(function (t) { feed.appendChild(renderTile(t, wk.byTile[t.id])); });
+    // After the last tile: "+ Yeni kutu" adds at the end of the plan (any date, e.g. a new month).
+    var end = el('button', 'tile addend');
+    end.type = 'button';
+    end.appendChild(el('span', 'plus', '+'));
+    end.appendChild(el('span', 'elbl', 'Yeni kutu'));
+    end.setAttribute('aria-label', 'Sona yeni kutu ekle');
+    feed.appendChild(end);
+    $('empty-plan').hidden = tiles.length > 0;
 
     var tabs = $('tabs');
     tabs.textContent = '';
@@ -234,7 +245,7 @@
   // ---------- today: highlight it and open the page there ----------
   function markToday() {
     var today = iso(new Date());
-    var target = plan.tiles.filter(function (t) { return t.date && t.date >= today; })
+    var target = shown().filter(function (t) { return t.date && t.date >= today; })
       .sort(function (a, b) { return a.date < b.date ? -1 : 1; })[0];
     document.querySelectorAll('.tile').forEach(function (n) {
       var t = findTile(n.dataset.id);
@@ -358,9 +369,12 @@
     return null;
   }
 
-  function persist() {
-    try { Store.save(plan); return true; }
+  // Saves the plan; every save is also kept as a version (Geçmiş) with a short reason.
+  function persist(reason) {
+    try { Store.save(plan); }
     catch (e) { toast('Kaydedilemedi: tarayıcı hafızası dolu.'); return false; }
+    if (window.Backup) { Backup.snapshot(plan, reason); Backup.refresh(); }
+    return true;
   }
 
   // Short notice at the bottom; optional button (e.g. "Geri al") with its own action.
@@ -379,38 +393,74 @@
   }
 
   // ---- 1.4 delete a tile, with "Geri al" ----
-  function delBtn() {
+  // ---- 2.3 "×": an empty tile is deleted, a full tile goes to the archive (both with "Geri al") ----
+  function delBtn(empty) {
     var b = el('button', 'del');
     b.type = 'button';
-    b.setAttribute('aria-label', 'Kutuyu sil');
+    b.setAttribute('aria-label', empty ? 'Boş kutuyu sil' : 'Kutuyu arşive kaldır');
     return b;
   }
+
+  function flash(id) {
+    var n = document.querySelector('.tile[data-id="' + id + '"]');
+    if (n) { n.classList.add('fresh'); n.scrollIntoView({ block: 'nearest' }); }
+  }
+
+  function isBlank(t) { return t.kind === 'empty' || !(t.images || []).length; }
 
   function removeTile(id) {
     var i = indexOf(id);
     if (i < 0) return;
-    var gone = plan.tiles.splice(i, 1)[0];
-    if (!persist()) { plan.tiles.splice(i, 0, gone); return; }
+    var t = plan.tiles[i];
+    if (isBlank(t)) {
+      plan.tiles.splice(i, 1);
+      if (!persist('Boş kutu silindi')) { plan.tiles.splice(i, 0, t); return; }
+      render();
+      toast('Boş kutu silindi.', 'Geri al', function () {
+        plan.tiles.splice(Math.min(i, plan.tiles.length), 0, t);
+        if (persist('Geri alındı')) { render(); flash(t.id); }
+      }, 7000);
+      return;
+    }
+    t.archived = new Date().toISOString();
+    if (!persist('Kutu arşivlendi')) { delete t.archived; return; }
     render();
-    toast('Kutu silindi.', 'Geri al', function () {
-      plan.tiles.splice(Math.min(i, plan.tiles.length), 0, gone);
-      if (persist()) {
-        render();
-        var n = document.querySelector('.tile[data-id="' + gone.id + '"]');
-        if (n) n.classList.add('fresh');
-      }
+    toast('Kutu arşive kaldırıldı.', 'Geri al', function () { unarchive(t.id, 'Geri alındı'); }, 7000);
+  }
+
+  function unarchive(id, reason) {
+    var t = findTile(id);
+    if (!t || !t.archived) return;
+    var was = t.archived;
+    delete t.archived;
+    if (!persist(reason || 'Arşivden geri getirildi')) { t.archived = was; return; }
+    render();
+    flash(id);
+  }
+
+  // Removes an archived tile for good (the versions in Geçmiş still have it).
+  function forget(id) {
+    var i = indexOf(id);
+    if (i < 0 || !plan.tiles[i].archived) return;
+    var t = plan.tiles.splice(i, 1)[0];
+    if (!persist('Arşivden silindi')) { plan.tiles.splice(i, 0, t); return; }
+    toast('Arşivden silindi.', 'Geri al', function () {
+      plan.tiles.splice(Math.min(i, plan.tiles.length), 0, t);
+      persist('Geri alındı');
     }, 7000);
   }
 
   // ---- insert: ask the date first ----
   var ask = $('ask'), pending = null;
 
+  // id = null: add at the very end of the plan ("+ Yeni kutu" after the last tile).
   function askDate(id, side) {
-    var i = indexOf(id);
-    if (i < 0) return;
-    var base = dateNear(i);
+    var i = id ? indexOf(id) : plan.tiles.length - 1;
+    if (id && i < 0) return;
+    var base = i >= 0 ? dateNear(i) : null;
     pending = { id: id, side: side };
-    $('ask-title').textContent = side === 'l' ? 'Soluna yeni kutu' : 'Sağına yeni kutu';
+    $('ask-title').textContent = !id ? 'Sona yeni kutu' : side === 'l' ? 'Soluna yeni kutu' : 'Sağına yeni kutu';
+    $('ask-date').value = iso(base ? addDays(base, side === 'l' ? -1 : 1) : new Date());
     var opts = $('ask-opts');
     opts.textContent = '';
     if (base) {
@@ -436,18 +486,27 @@
 
   function closeAsk() { ask.hidden = true; pending = null; }
 
-  $('ask-opts').addEventListener('click', function (e) {
-    var b = e.target.closest('.abtn');
-    if (!b || !pending) return;
-    var i = indexOf(pending.id);
-    var at = pending.side === 'l' ? i : i + 1;
-    var tile = { id: 't' + Date.now().toString(36), kind: 'empty', date: b.dataset.date, title: '', images: [] };
+  function insert(date) {
+    if (!pending) return;
+    var at = pending.id ? indexOf(pending.id) + (pending.side === 'l' ? 0 : 1) : plan.tiles.length;
+    var tile = { id: 't' + Date.now().toString(36), kind: 'empty', date: date, title: '', images: [] };
     plan.tiles.splice(at, 0, tile);
     closeAsk();
-    if (!persist()) { plan.tiles.splice(at, 1); return; }
+    if (!persist('Kutu eklendi')) { plan.tiles.splice(at, 1); return; }
     render();
     var node = document.querySelector('.tile[data-id="' + tile.id + '"]');
     if (node) { node.classList.add('fresh'); node.scrollIntoView({ block: 'nearest' }); node.focus({ preventScroll: true }); }
+  }
+
+  $('ask-opts').addEventListener('click', function (e) {
+    var b = e.target.closest('.abtn');
+    if (b) insert(b.dataset.date);
+  });
+  // "Başka gün": any date, e.g. the first day of a new month.
+  $('ask-go').addEventListener('click', function () {
+    var v = $('ask-date').value;
+    if (!parse(v)) { $('ask-date').focus(); return; }
+    insert(v);
   });
   $('ask-cancel').addEventListener('click', closeAsk);
   ask.addEventListener('click', function (e) { if (e.target === ask) closeAsk(); });
@@ -464,7 +523,7 @@
     t.kind = items.length > 1 ? 'carousel' : isVideo(t.images[0]) ? 'reel' : 'post';
     if (!t.title) t.title = t.label || '';
     delete t.style; delete t.label; delete t.video;
-    if (!persist()) { Object.assign(t, JSON.parse(before)); return false; }
+    if (!persist('Kutu dolduruldu')) { Object.assign(t, JSON.parse(before)); return false; }
     render();
     var node = document.querySelector('.tile[data-id="' + id + '"]');
     if (node) node.classList.add('fresh');
@@ -545,7 +604,7 @@
           return { driveId: f.id, name: im.name, mime: f.mime };
         });
       });
-      if (linked && persist()) {
+      if (linked && persist('Doc 2 görselleri Drive\'a bağlandı')) {
         render();
         toast('Doc 2 görselleri Drive\'a bağlandı: ' + linked + (missed ? ' · bulunamayan: ' + missed : ''), null, null, 5000);
       } else if (missed) {
@@ -570,6 +629,7 @@
   }
 
   $('feed').addEventListener('click', function (e) {
+    if (e.target.closest('.addend')) { askDate(null, 'r'); return; }
     var add = e.target.closest('.add');
     if (add) { e.stopPropagation(); askDate(add.closest('.tile').dataset.id, add.dataset.side); return; }
     var del = e.target.closest('.del');
@@ -578,7 +638,7 @@
     if (node) activate(node);
   });
   $('feed').addEventListener('keydown', function (e) {
-    if (e.target.closest('.add, .del')) return;
+    if (e.target.closest('.add, .del, .addend')) return;
     var node = e.target.closest('.tile');
     if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); disarm(); node.classList.add('armed'); open(node); }
   });
@@ -616,7 +676,49 @@
   document.addEventListener('dragover', function (e) { if (!ours(e)) e.preventDefault(); });
   document.addEventListener('drop', function (e) { if (!ours(e)) { e.preventDefault(); toast('Önce dosyayı Drive klasörüne ekle, sonra Kütüphane\'den seç.'); } });
 
-  window.Planner = { fill: fill, tileLabel: tileLabel, isEmpty: function (id) { var t = findTile(id); return !!t && (t.kind === 'empty' || !(t.images || []).length); }, DT: DT, toast: toast };
+  // ---- for the Yedek panel (js/backup.js) ----
+  function kindName(t) { return isBlank(t) ? 'Boş' : t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi'; }
+  function thumb(t) {
+    var b = el('span', 'bthumb');
+    var im = (t.images || [])[0];
+    if (im) b.appendChild(pic(im, 600, ''));
+    return b;
+  }
+  function replace(p, reason) {
+    persist('Önceki hali');          // the current plan stays in Geçmiş (skipped when already saved)
+    // A restored plan is used exactly as it was: mark it current so the one-time tidy-up (2.4) never runs on it.
+    if ((p.version || 1) < Store.VERSION) p.version = Store.VERSION;
+    plan = p;
+    if (!persist(reason)) return false;
+    render();
+    return true;
+  }
+
+  window.Planner = {
+    fill: fill, tileLabel: tileLabel, DT: DT, toast: toast,
+    isEmpty: function (id) { var t = findTile(id); return !!t && isBlank(t); },
+    plan: function () { return plan; },
+    replace: replace,
+    archived: function () {
+      return plan.tiles.filter(function (t) { return t.archived; })
+        .sort(function (a, b) { return (a.date || '9') < (b.date || '9') ? -1 : 1; });
+    },
+    unarchive: function (id) { unarchive(id); },
+    forget: forget,
+    thumb: thumb,
+    kindName: kindName,
+    dayName: function (s) { var d = parse(s); return d ? GUNL[d.getDay()] : ''; },
+    weekName: function (id) { var w = weeks().byTile[id]; return w ? 'H' + w.n : ''; },
+    shortDate: function (x) { var d = typeof x === 'string' ? parse(x) : x; return d ? d.getDate() + ' ' + AYK[d.getMonth() + 1] : ''; }
+  };
+
+  // First open after the update (2.4): keep the old state as a version, then save the tidied plan.
+  if (Store.upgradedFrom && window.Backup) {
+    try { Backup.snapshot(JSON.parse(Store.upgradedFrom), 'Güncellemeden önce'); } catch (e) { /* ignore */ }
+    persist('Başlangıç 12 Kasım; boş son kutu silindi');
+  } else if (window.Backup) {
+    Backup.snapshot(plan, 'Açılış');
+  }
 
   render();
 })();

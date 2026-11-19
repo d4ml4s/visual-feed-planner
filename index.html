@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Crect width='30' height='30' rx='6' fill='%23111'/%3E%3Cg fill='%23fff'%3E%3Crect x='5' y='5' width='6' height='6'/%3E%3Crect x='12' y='5' width='6' height='6'/%3E%3Crect x='19' y='5' width='6' height='6'/%3E%3Crect x='5' y='12' width='6' height='6'/%3E%3Crect x='12' y='12' width='6' height='6'/%3E%3Crect x='19' y='12' width='6' height='6' fill='%23E8435A'/%3E%3Crect x='5' y='19' width='6' height='6'/%3E%3Crect x='12' y='19' width='6' height='6'/%3E%3C/g%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=1.7">
+  <link rel="stylesheet" href="css/style.css?v=2.0">
 </head>
 <body>
   <div class="wrap">
@@ -19,6 +19,7 @@
       <section class="drive" aria-label="Google Drive kütüphanesi">
         <div class="drow">
           <button class="dbtn" id="dconnect" type="button">Drive'a bağlan</button>
+          <button class="dbtn ghost" id="bk-open" type="button">Yedek</button>
           <span class="dstatus" id="dstatus" role="status">Görseller Google Drive'dan gelir.</span>
         </div>
       </section>
@@ -61,18 +62,58 @@
       <b id="ask-title">Yeni kutu</b>
       <p>Hangi gün?</p>
       <div class="aopts" id="ask-opts"></div>
+      <div class="aother">
+        <label for="ask-date">Başka gün</label>
+        <input type="date" id="ask-date">
+        <button class="dbtn" id="ask-go" type="button">Ekle</button>
+      </div>
       <button class="acancel" id="ask-cancel" type="button">Vazgeç</button>
+    </div>
+  </div>
+
+  <div class="bk" id="bk" hidden role="dialog" aria-modal="true" aria-labelledby="bk-title">
+    <div class="bbox">
+      <div class="lhead">
+        <div><b id="bk-title">Yedek</b><span>Planın kopyaları. Hiçbir şey kaybolmaz.</span></div>
+        <button class="lclose" id="bk-close" type="button">Kapat ✕</button>
+      </div>
+      <section class="bsec" aria-labelledby="bk-x">
+        <h2 id="bk-x">Excel</h2>
+        <p class="bnote">Planı Excel dosyası olarak indir; başka bir cihazda ya da temizlenen tarayıcıda geri yükle. Yüklerken dosyadaki gizli tam kopya kullanılır.</p>
+        <div class="bacts">
+          <button class="dbtn" id="bk-export" type="button">Excel'e aktar</button>
+          <button class="dbtn ghost" id="bk-import" type="button">Excel'den yükle</button>
+          <input type="file" id="bk-file" accept=".xlsx" hidden>
+        </div>
+        <div class="bconfirm" id="bk-confirm" hidden>
+          <p id="bk-ctext"></p>
+          <div class="bacts">
+            <button class="dbtn" id="bk-yes" type="button">Yükle</button>
+            <button class="dbtn ghost" id="bk-no" type="button">Vazgeç</button>
+          </div>
+        </div>
+      </section>
+      <section class="bsec" aria-labelledby="bk-a">
+        <h2 id="bk-a">Arşiv <span id="bk-acount"></span></h2>
+        <div class="blist" id="bk-archive"></div>
+      </section>
+      <section class="bsec" aria-labelledby="bk-h">
+        <h2 id="bk-h">Geçmiş</h2>
+        <p class="bnote">Her değişiklik kaydedilir: son 30 kayıt ve 30 gün boyunca her günün sonuncusu. Bu tarayıcıda saklanır.</p>
+        <div class="blist" id="bk-history"></div>
+      </section>
     </div>
   </div>
 
   <div class="toast" id="toast" hidden role="status"></div>
 
   <!-- Local Doc 2 skeleton (gitignored). Missing on the published site until F4 brings the plan from Drive. -->
-  <script src="data/seed.js?v=1.7" onerror="window.SEED = null"></script>
-  <script src="js/storage.js?v=1.7"></script>
-  <script src="js/config.js?v=1.7"></script>
-  <script src="js/drive.js?v=1.7"></script>
-  <script src="js/app.js?v=1.7"></script>
-  <script src="js/library.js?v=1.7"></script>
+  <script src="data/seed.js?v=2.0" onerror="window.SEED = null"></script>
+  <script src="js/storage.js?v=2.0"></script>
+  <script src="js/config.js?v=2.0"></script>
+  <script src="js/drive.js?v=2.0"></script>
+  <script src="js/backup.js?v=2.0"></script>
+  <script src="js/app.js?v=2.0"></script>
+  <script src="js/library.js?v=2.0"></script>
 </body>
 </html>
