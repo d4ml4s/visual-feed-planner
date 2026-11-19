@@ -488,9 +488,17 @@
       return (t.images || []).some(function (im) { return im.src && !im.driveId; });
     });
     if (!todo.length) return Promise.resolve();
+    // tools/link_cards.py found each card's twin in the library by comparing the pictures and wrote its
+    // library path into the skeleton ("drive": "Kolye/4-5/<file>"). Saved plans made before that still
+    // carry only the old path, so the hint is looked up in the skeleton by that path.
+    var hints = {};
+    ((window.SEED && SEED.tiles) || []).forEach(function (t) {
+      (t.images || []).forEach(function (im) { if (im.src && im.drive) hints[im.src] = key(im.drive); });
+    });
     return Drive.media(window.CONFIG.libraryFolderId).then(function (all) {
-      var cards = {}, videos = {};
+      var cards = {}, videos = {}, byPath = {};
       all.forEach(function (f) {
+        byPath[key((f.path ? f.path + '/' : '') + f.name)] = f;
         var day = /^(\d{4}-\d{2}-\d{2}_\d{2})_/.exec(f.name);
         if (day && /^image\//.test(f.mime) && (!cards[day[1]] || /4-5/.test(f.name + f.path))) cards[day[1]] = f;
         if (/^video\//.test(f.mime)) videos[videoKey(f.name)] = f;
@@ -506,7 +514,7 @@
         t.images = t.images.map(function (im) {
           if (!im.src || im.driveId) return im;
           var m = /(\d{4}-\d{2}-\d{2}_\d{2})\.\w+$/.exec(im.src);
-          var f = m && cards[m[1]];
+          var f = (hints[im.src] && byPath[hints[im.src]]) || (m && cards[m[1]]);
           if (!f) { missed++; return im; }
           linked++;
           return { driveId: f.id, name: im.name, mime: f.mime };
