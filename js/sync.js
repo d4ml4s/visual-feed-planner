@@ -89,10 +89,35 @@
     keep();
     show("Drive'dan alındı " + hm(meta.modifiedTime));
   }
-  // Both sides changed: decided in 5.4. Until then nothing is overwritten.
+  // ---- 5.4 both sides changed: ask which plan stays; the other one is kept in Geçmiş ----
+  function count(pl) { return pl.tiles.filter(function (t) { return !t.archived; }).length + ' kutu'; }
   function conflict(p, meta) {
+    var box = $('conflict');
+    if (!box.hidden) return Promise.resolve();          // already asking
     show('Plan iki yerde değişti', 'bad');
-    return Promise.resolve();
+    $('cf-drive').querySelector('span').textContent = from(meta) + ' · ' + count(p);
+    $('cf-local').querySelector('span').textContent = device + ' · ' + count(Planner.plan());
+    box.hidden = false;
+    $('cf-drive').focus();
+    return new Promise(function (done) {
+      $('cf-drive').onclick = function () {
+        box.hidden = true;
+        Backup.snapshot(Planner.plan(), 'Bu cihazdaki (çakışmada bırakıldı)', true);
+        take(p, meta);
+        done();
+      };
+      $('cf-local').onclick = function () {
+        box.hidden = true;
+        Backup.snapshot(p, "Drive'daki (çakışmada bırakıldı, " + from(meta) + ')');
+        Backup.snapshot(Planner.plan(), 'Bu cihazdaki seçildi', true);
+        st.version = meta.version;                    // we have seen Drive's copy: now ours replaces it
+        st.dirty = true;
+        keep();
+        show('Kaydediliyor…');
+        done();
+        setTimeout(push, 0);
+      };
+    });
   }
 
   // Coming back to the tab (e.g. after planning on the phone): look for a newer plan.
