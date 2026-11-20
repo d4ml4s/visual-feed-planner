@@ -258,3 +258,13 @@ body.lib-open .toast { bottom: calc(64vh + 12px); }
 .tile.line-l::before, .tile.line-r::before { content: ""; position: absolute; top: -4px; bottom: -4px; width: 5px; border-radius: 3px; background: var(--pink); z-index: 5; box-shadow: 0 0 0 2px var(--bg); }
 .tile.line-l::before { left: -4px; }
 .tile.line-r::before { right: -4px; }
+/* 4.4 phone: a picked tile and the bar to confirm the move */
+@media (hover: none) { .tile, .addend { touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }   /* no double-tap zoom, no blue selection on tiles */
+.tile.picked { outline: 3px solid var(--pink); outline-offset: -3px; }
+.tile.picked > * { opacity: .55; }
+body.picking .add, body.picking .del, body.picking .mode { display: none; }
+.movebar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 13; background: var(--bg); box-shadow: 0 -4px 20px rgba(0,0,0,.18);
+  display: flex; align-items: center; gap: 8px; padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.movebar span { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; }
+.movebar .dbtn { min-height: 44px; flex: none; }
+body.picking .wrap { padding-bottom: 90px; }

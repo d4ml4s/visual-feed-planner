@@ -218,6 +218,7 @@
     $('wbar').hidden = !wk.list.length;
     followWeeks(wk.list);
     markToday();
+    if (pick) showPick();
   }
 
   // ---------- pinned week bar follows the scroll ----------
@@ -656,6 +657,7 @@
   // =====================================================================
   var mode = 'view';
   function setMode(m, quiet) {
+    if (m !== 'edit' && window.endPick) endPick();
     mode = m;
     document.body.classList.toggle('mode-edit', touch && m === 'edit');
     document.body.classList.toggle('mode-view', touch && m !== 'edit');
@@ -691,12 +693,21 @@
       else toast('Doldurmak için Düzenle\'ye geç.');
       return;
     }
-    if (empty && window.Library) Library.open(node.dataset.id);
-    // Düzenle: a single tap on a full tile does nothing (no accidental opens).
+    if (empty) { if (window.Library) Library.open(node.dataset.id); return; }
+    // Düzenle: a single tap on a full tile does nothing (no accidental opens); a double tap picks it up (4.4).
+    var now = Date.now(), id = node.dataset.id;
+    if (lastTap.id === id && now - lastTap.at < 400) { lastTap = { id: null, at: 0 }; startPick(id); }
+    else lastTap = { id: id, at: now };
   }
+  var lastTap = { id: null, at: 0 };
 
   $('feed').addEventListener('click', function (e) {
     if (notATap()) { e.stopPropagation(); return; }
+    if (pick) {
+      var to = e.target.closest('.tile[data-id], .addend');
+      if (to && to.dataset.id !== pick) placeTap(to, e.clientX);
+      return;
+    }
     if (e.target.closest('.addend')) { askDate(null, 'r'); return; }
     var add = e.target.closest('.add');
     if (add) { e.stopPropagation(); askDate(add.closest('.tile').dataset.id, add.dataset.side); return; }
@@ -789,6 +800,46 @@
     node.classList.add('line-' + side);
     return { id: node.dataset.id, side: side };
   }
+
+  // ---- 4.4 phone (Düzenle): double tap a full tile → it lifts; tap where it should go → a line;
+  //      "Buraya taşı" moves it, "Vazgeç" leaves everything as it was ----
+  var pick = null, spot = null;
+  function startPick(id) {
+    pick = id; spot = null;
+    document.body.classList.add('picking');
+    showPick();
+    $('mv-text').textContent = 'Nereye? Bir kutuya dokun.';
+    $('mv-go').hidden = true;
+    $('movebar').hidden = false;
+  }
+  function showPick() {              // also after a redraw
+    var n = pick && document.querySelector('.tile[data-id="' + pick + '"]');
+    if (n) n.classList.add('picked');
+    if (spot) {
+      var s = spot.id ? document.querySelector('.tile[data-id="' + spot.id + '"]') : document.querySelector('.addend');
+      if (s) s.classList.add(spot.id ? 'line-' + spot.side : 'line-l');
+    }
+  }
+  function endPick() {
+    pick = null; spot = null;
+    clearLine();
+    document.body.classList.remove('picking');
+    document.querySelectorAll('.picked').forEach(function (n) { n.classList.remove('picked'); });
+    $('movebar').hidden = true;
+  }
+  window.endPick = endPick;
+  function placeTap(node, x) {
+    spot = lineAt(node, x);
+    $('mv-text').textContent = spot.id ? (spot.side === 'l' ? 'Soluna: ' : 'Sağına: ') + tileLabel(spot.id) : 'En sona';
+    $('mv-go').hidden = false;
+  }
+  $('mv-go').addEventListener('click', function () {
+    if (!pick || !spot) return;
+    var id = pick, s = spot;
+    endPick();
+    moveTile(id, s.id, s.side);
+  });
+  $('mv-cancel').addEventListener('click', endPick);
 
   var dragId = null;
   $('feed').addEventListener('dragstart', function (e) {
