@@ -176,6 +176,7 @@
       band.id = w.id;
       tile.appendChild(band);
     }
+    tile.draggable = !touch;           // 4.3: on the computer every tile can be dragged to a new place
     tile.setAttribute('role', 'button');
     tile.tabIndex = 0;
     tile.appendChild(delBtn(tile.classList.contains('empty')));
@@ -184,7 +185,6 @@
     if (tile.classList.contains('empty')) {
       tile.setAttribute('aria-label', 'Boş kutu' + (d ? ' ' + chip(d) : '') + ': doldur');
     } else {
-      tile.draggable = false;
       tile.setAttribute('aria-label', (t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi') + (d ? ' ' + chip(d) : '') + (t.title ? ': ' + t.title : ''));
     }
     return tile;
@@ -739,9 +739,96 @@
     if (fill(node.dataset.id, items) && window.Library) Library.clearSelection();
   });
   document.addEventListener('dragend', clearDrag);
+
+  // =====================================================================
+  // 4.3 / 4.4 Move a tile. It lands left or right of another tile (or at the end) and takes the
+  // date of its new place: the tile just before it, or the tile after it when it lands first.
+  // =====================================================================
+  var MT = 'application/x-vfp-move';
+  function moving(e) { return Array.prototype.indexOf.call(e.dataTransfer.types, MT) >= 0; }
+
+  function placeDate(i) {
+    for (var k = i - 1; k >= 0; k--) { var t = plan.tiles[k]; if (!t.archived && parse(t.date)) return t.date; }
+    for (k = i + 1; k < plan.tiles.length; k++) { t = plan.tiles[k]; if (!t.archived && parse(t.date)) return t.date; }
+    return '';
+  }
+
+  /** targetId = null → the end of the plan. side: 'l' | 'r'. */
+  function moveTile(id, targetId, side) {
+    if (id === targetId) return false;
+    var from = indexOf(id);
+    if (from < 0) return false;
+    var t = plan.tiles[from], oldDate = t.date;
+    plan.tiles.splice(from, 1);
+    var at = targetId ? indexOf(targetId) + (side === 'l' ? 0 : 1) : plan.tiles.length;
+    plan.tiles.splice(at, 0, t);
+    t.date = placeDate(at) || t.date;
+    if (at === from && t.date === oldDate) return false;     // same place, nothing to do
+    if (!persist('Kutu taşındı')) { plan.tiles.splice(at, 1); plan.tiles.splice(from, 0, t); t.date = oldDate; return false; }
+    render();
+    flash(id);
+    var d = parse(t.date);
+    toast('Kutu taşındı' + (d && t.date !== oldDate ? ': ' + chip(d) : '') + '.', 'Geri al', function () {
+      var i = indexOf(id);
+      if (i < 0) return;
+      plan.tiles.splice(i, 1);
+      plan.tiles.splice(Math.min(from, plan.tiles.length), 0, t);
+      t.date = oldDate;
+      if (persist('Geri alındı')) { render(); flash(id); }
+    }, 7000);
+    return true;
+  }
+
+  // The line: on the left or right edge of the tile under the pointer, whichever half it is over.
+  function clearLine() { document.querySelectorAll('.line-l, .line-r').forEach(function (n) { n.classList.remove('line-l', 'line-r'); }); }
+  function lineAt(node, x) {
+    clearLine();
+    if (!node) return null;
+    if (node.classList.contains('addend')) { node.classList.add('line-l'); return { id: null, side: 'r' }; }
+    var b = node.getBoundingClientRect(), side = x < b.left + b.width / 2 ? 'l' : 'r';
+    node.classList.add('line-' + side);
+    return { id: node.dataset.id, side: side };
+  }
+
+  var dragId = null;
+  $('feed').addEventListener('dragstart', function (e) {
+    var node = e.target.closest && e.target.closest('.tile[data-id]');
+    if (!node || touch) return;
+    dragId = node.dataset.id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(MT, dragId);
+    setTimeout(function () { node.classList.add('lifted'); }, 0);
+  });
+  $('feed').addEventListener('dragover', function (e) {
+    if (!moving(e)) return;
+    var node = e.target.closest('.tile[data-id], .addend');
+    if (!node || node.dataset.id === dragId) { clearLine(); return; }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    lineAt(node, e.clientX);
+  });
+  $('feed').addEventListener('drop', function (e) {
+    if (!moving(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var node = e.target.closest('.tile[data-id], .addend'), id = e.dataTransfer.getData(MT);
+    var spot = node && node.dataset.id !== id ? lineAt(node, e.clientX) : null;
+    clearLine();
+    if (spot) moveTile(id, spot.id, spot.side);
+  });
+  document.addEventListener('dragend', function () {
+    clearLine();
+    document.querySelectorAll('.lifted').forEach(function (n) { n.classList.remove('lifted'); });
+    dragId = null;
+  });
   // Files dragged in from the computer are not used (media comes from Drive): don't let the browser open them.
   document.addEventListener('dragover', function (e) { if (!ours(e)) e.preventDefault(); });
-  document.addEventListener('drop', function (e) { if (!ours(e)) { e.preventDefault(); toast('Önce dosyayı Drive klasörüne ekle, sonra Kütüphane\'den seç.'); } });
+  document.addEventListener('drop', function (e) {
+    if (ours(e)) return;
+    e.preventDefault();
+    if (moving(e)) return;            // a tile dropped outside the grid: it stays where it was
+    toast('Önce dosyayı Drive klasörüne ekle, sonra Kütüphane\'den seç.');
+  });
 
   // ---- for the Yedek panel (js/backup.js) ----
   function kindName(t) { return isBlank(t) ? 'Boş' : t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi'; }

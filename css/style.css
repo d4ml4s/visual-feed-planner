@@ -248,3 +248,13 @@ body.lib-open .toast { bottom: calc(64vh + 12px); }
   /* Düzenle: a thin frame around the grid says "you can change things now" */
   body.mode-edit .feed { outline: 2px solid var(--fg); outline-offset: 4px; border-radius: 2px; }
 }
+
+/* ---------- Feature 4: moving tiles ---------- */
+@media (hover: hover) { .tile[draggable="true"] { cursor: grab; } }
+.tile img { -webkit-user-drag: none; }
+.tile.lifted { opacity: .35; }
+/* where the tile will land: a bar on the left or right edge (overflow visible so it sits in the gap) */
+.tile.line-l, .tile.line-r { overflow: visible; }
+.tile.line-l::before, .tile.line-r::before { content: ""; position: absolute; top: -4px; bottom: -4px; width: 5px; border-radius: 3px; background: var(--pink); z-index: 5; box-shadow: 0 0 0 2px var(--bg); }
+.tile.line-l::before { left: -4px; }
+.tile.line-r::before { right: -4px; }
