@@ -46,10 +46,8 @@
     return Drive.findPlan().then(function (found) {
       if (found.file) {
         st.fileId = found.file.id;
-        if (!st.version) st.version = found.file.version;
         keep();
-        saved(found.file);
-        return;
+        return compare(found.file);
       }
       if (!Planner.plan().tiles.length) { show('Bu hesapta plan yok', 'bad'); return; }
       show('Kaydediliyor…');
@@ -63,5 +61,48 @@
   }
   document.addEventListener('drive:signedin', start);
 
-  window.Sync = { state: function () { return JSON.parse(JSON.stringify(st)); } };
+  // ---- 5.2 load: Drive has a newer plan (saved on another device) → take it ----
+  var applying = false;          // true while a plan from Drive is put in place (that is not a new change)
+  function compare(meta) {
+    if (st.version && String(meta.version) === String(st.version)) {
+      if (st.dirty && window.Sync.push) return Sync.push();
+      saved(meta);
+      return Promise.resolve();
+    }
+    return Drive.readPlan(meta.id).then(function (body) {
+      var p = JSON.parse(body);
+      if (!Store.valid(p)) throw new Error("Drive'daki plan okunamadı.");
+      if (body === text()) { st.version = meta.version; st.dirty = false; keep(); saved(meta); return; }
+      var fresh = !st.version && !Planner.plan().tiles.length;     // this browser has nothing yet
+      if (!st.dirty && (st.version || fresh)) return take(p, meta);
+      return conflict(p, meta);
+    });
+  }
+  function from(meta) {
+    var dev = meta.appProperties && meta.appProperties.device;
+    return (dev ? dev + ', ' : '') + hm(meta.modifiedTime);
+  }
+  function take(p, meta) {
+    applying = true;
+    try { Planner.replace(p, "Drive'dan alındı (" + from(meta) + ')'); } finally { applying = false; }
+    st.version = meta.version; st.dirty = false; st.savedAt = meta.modifiedTime;
+    keep();
+    show("Drive'dan alındı " + hm(meta.modifiedTime));
+  }
+  // Both sides changed: decided in 5.4. Until then nothing is overwritten.
+  function conflict(p, meta) {
+    show('Plan iki yerde değişti', 'bad');
+    return Promise.resolve();
+  }
+
+  // Coming back to the tab (e.g. after planning on the phone): look for a newer plan.
+  var checking = null;
+  function check() {
+    if (checking || !Drive.canWrite() || !st.fileId) return;
+    checking = Drive.planMeta(st.fileId).then(compare).catch(function (e) { show('Drive: ' + e.message, 'bad'); })
+      .then(function () { checking = null; });
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
+
+  window.Sync = { state: function () { return JSON.parse(JSON.stringify(st)); }, check: check };
 })();
