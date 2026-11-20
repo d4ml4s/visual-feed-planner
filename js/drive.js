@@ -1,10 +1,18 @@
-/* Google Drive connection (read-only). Browser → Google directly; no server, no API key.
+/* Google Drive connection. Browser → Google directly; no server, no API key.
+   Two permissions: read the library (drive.readonly) and create/update ONLY the app's own files
+   (drive.file: the "Visual Feed Planner" folder and its plan.json, Feature 5). The library stays read-only.
    The access token is kept for this browser tab only (sessionStorage), so a refresh doesn't sign you out.
-   It expires after about an hour; then one click on "Drive'a bağlan" renews it. */
+   It expires after about an hour; then one click on "Drive'a bağlan" renews it.
+   The chosen Google account is remembered in this browser only (localStorage), never in the code. */
 (function () {
   'use strict';
   var C = window.CONFIG || {};
-  var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+  var READ = 'https://www.googleapis.com/auth/drive.readonly';
+  var OWN = 'https://www.googleapis.com/auth/drive.file';
+  var SCOPE = READ + ' ' + OWN;
+  var UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+  var ACCOUNT = 'vfp.drive.account';
+  var canWrite = false;
   var FOLDER = 'application/vnd.google-apps.folder';
   var API = 'https://www.googleapis.com/drive/v3/files';
   var token = null, client = null, gisReady = null;
@@ -13,7 +21,8 @@
   // Restore the sign-in after a refresh (same tab only, until it expires).
   try {
     var saved = JSON.parse(sessionStorage.getItem(TOK) || 'null');
-    if (saved && saved.exp > Date.now() + 60000) token = saved.t;
+    // tokens from before Feature 5 lack the write permission: sign in once more to get it
+    if (saved && saved.exp > Date.now() + 60000 && saved.s && saved.s.indexOf(READ) >= 0) { token = saved.t; canWrite = saved.s.indexOf(OWN) >= 0; }
     else sessionStorage.removeItem(TOK);
   } catch (e) {}
   if (token) {
@@ -49,7 +58,10 @@
       client.callback = function (r) {
         if (r && r.access_token) {
           token = r.access_token;
-          try { sessionStorage.setItem(TOK, JSON.stringify({ t: token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000 })); } catch (e) {}
+          var granted = r.scope || SCOPE;    // a user may untick a permission in Google's window
+          canWrite = granted.indexOf(OWN) >= 0;
+          try { sessionStorage.setItem(TOK, JSON.stringify({ t: token, s: granted, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000 })); } catch (e) {}
+          rememberAccount();
           document.dispatchEvent(new CustomEvent('drive:signedin'));
           res();
         } else rej(new Error('Giriş yapılamadı.'));
@@ -57,22 +69,88 @@
       client.error_callback = function (e) {
         rej(new Error(e && e.type === 'popup_closed' ? 'Giriş penceresi kapandı.' : 'Giriş yapılamadı.'));
       };
-      client.requestAccessToken();
+      // First time in this browser: Google's account chooser. Afterwards: the remembered account.
+      var known = null;
+      try { known = localStorage.getItem(ACCOUNT); } catch (e) {}
+      client.requestAccessToken(known ? { hint: known } : { prompt: 'select_account' });
     });
   }
 
+  // The signed-in account (shown in the Yedek panel; used as the hint next time).
+  var who = null;
+  function rememberAccount() {
+    return api('', {}, 'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)').then(function (d) {
+      who = d.user || null;
+      try { if (who && who.emailAddress) localStorage.setItem(ACCOUNT, who.emailAddress); } catch (e) {}
+      return who;
+    }, function () { return null; });
+  }
+  function account() { return who ? Promise.resolve(who) : (token ? rememberAccount() : Promise.resolve(null)); }
+
   function fail(r) {
-    if (r.status === 401) { forget(); return new Error('Oturum süresi doldu. Tekrar bağlan.'); }
-    if (r.status === 403 || r.status === 404) return new Error('Bu dosyaya erişim yok. Kütüphanenin sahibi olan hesapla mı giriş yaptın?');
-    return new Error('Drive hatası (' + r.status + ').');
+    var e;
+    if (r.status === 401) { forget(); e = new Error('Oturum süresi doldu. Tekrar bağlan.'); }
+    else if (r.status === 403 || r.status === 404) e = new Error('Bu dosyaya erişim yok. Kütüphanenin sahibi olan hesapla mı giriş yaptın?');
+    else e = new Error('Drive hatası (' + r.status + ').');
+    e.status = r.status;
+    return e;
   }
 
-  function api(path, params) {
-    var q = new URLSearchParams(Object.assign({ supportsAllDrives: 'true' }, params || {}));
-    return fetch(API + path + '?' + q, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
+  function api(path, params, base) {
+    var q = new URLSearchParams(Object.assign(base ? {} : { supportsAllDrives: 'true' }, params || {}));
+    return fetch((base || API + path) + '?' + q, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
       if (!r.ok) throw fail(r);
       return r.json();
     });
+  }
+
+  // ---------------- Feature 5: the plan file (only files this app created are visible to it) ----------------
+  var PLAN_FOLDER = 'Visual Feed Planner', PLAN_FILE = 'plan.json';
+  var META = 'id, modifiedTime, version, appProperties';
+
+  function send(method, url, body, type) {
+    return fetch(url, { method: method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': type || 'application/json' }, body: body })
+      .then(function (r) { if (!r.ok) throw fail(r); return r.json(); });
+  }
+  function multipart(meta, json) {
+    var b = 'vfp' + Math.random().toString(36).slice(2);
+    return {
+      type: 'multipart/related; boundary=' + b,
+      body: '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) +
+            '\r\n--' + b + '\r\nContent-Type: application/json\r\n\r\n' + json + '\r\n--' + b + '--'
+    };
+  }
+  /** The plan file's metadata, or null when this account has none yet. Also returns the folder id. */
+  function findPlan() {
+    var qf = "name = '" + PLAN_FOLDER + "' and mimeType = '" + FOLDER + "' and 'root' in parents and trashed = false";
+    return api('', { q: qf, fields: 'files(id)', spaces: 'drive' }).then(function (d) {
+      var folder = d.files && d.files[0];
+      if (!folder) return { folderId: null, file: null };
+      var q = "name = '" + PLAN_FILE + "' and '" + folder.id + "' in parents and trashed = false";
+      return api('', { q: q, fields: 'files(' + META + ')', spaces: 'drive' }).then(function (d2) {
+        return { folderId: folder.id, file: (d2.files && d2.files[0]) || null };
+      });
+    });
+  }
+  function planMeta(id) { return api('/' + id, { fields: META }); }
+  function readPlan(id) {
+    return fetch(API + '/' + id + '?alt=media', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function (r) { if (!r.ok) throw fail(r); return r.text(); });
+  }
+  function createPlan(json, props) {
+    return findPlan().then(function (found) {
+      if (found.file) return found.file;                       // made meanwhile (e.g. another tab)
+      var folder = found.folderId ? Promise.resolve({ id: found.folderId })
+        : send('POST', API + '?fields=id', JSON.stringify({ name: PLAN_FOLDER, mimeType: FOLDER, parents: ['root'] }));
+      return folder.then(function (f) {
+        var m = multipart({ name: PLAN_FILE, mimeType: 'application/json', parents: [f.id], appProperties: props || {} }, json);
+        return send('POST', UPLOAD + '?uploadType=multipart&fields=' + encodeURIComponent(META), m.body, m.type);
+      });
+    });
+  }
+  function updatePlan(id, json, props) {
+    var m = multipart({ appProperties: props || {} }, json);
+    return send('PATCH', UPLOAD + '/' + id + '?uploadType=multipart&fields=' + encodeURIComponent(META), m.body, m.type);
   }
 
   // All items directly inside one folder (follows pages).
@@ -346,6 +424,13 @@
     loadGis: loadGis,
     signIn: signIn,
     isSignedIn: function () { return !!token; },
+    canWrite: function () { return !!token && canWrite; },
+    account: account,
+    findPlan: findPlan,
+    planMeta: planMeta,
+    readPlan: readPlan,
+    createPlan: createPlan,
+    updatePlan: updatePlan,
     folders: folders,
     media: media,
     ensureThumbs: ensureThumbs,

@@ -275,3 +275,10 @@ body.picking .wrap { padding-bottom: 90px; }
 .tile.holding { transform: scale(.96); transition: transform .35s ease-out; }
 .mdate { font: inherit; font-size: 16px; min-height: 48px; padding: 0 12px; border: 1.5px solid var(--fg); border-radius: 10px; background: var(--bg); color: var(--fg); width: 100%; }
 #md-go { min-height: 48px; }
+
+/* ---------- Feature 5: plan saved in Drive ---------- */
+.sync { font: inherit; font-size: 12.5px; color: var(--muted); background: none; border: 0; padding: 4px 0; cursor: default; text-align: left; }
+.sync.bad { color: var(--pink-d); font-weight: 600; }
+.sync.warn { color: var(--fg); font-weight: 600; }
+.sync.act { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.sync:disabled { opacity: 1; }
