@@ -684,9 +684,21 @@
 
   function libraryOpen() { return !$('lib').hidden; }
 
-  function activate(node) {
+  function activate(node, e) {
     var empty = node.classList.contains('empty');
-    if (!touch) { empty ? (window.Library && Library.open(node.dataset.id)) : open(node); return; }
+    if (!touch) {
+      // 4.7 computer: a double-click opens the calendar (move to a day). A single click waits a
+      // moment so the first click of a double-click doesn't open the large view first.
+      clearTimeout(clickTimer);
+      if (e && e.detail >= 2) { askMoveDate(node.dataset.id); return; }
+      var id0 = node.dataset.id;
+      clickTimer = setTimeout(function () {
+        var n = document.querySelector('.tile[data-id="' + id0 + '"]');
+        if (!n) return;
+        empty ? (window.Library && Library.open(id0)) : open(n);
+      }, 260);
+      return;
+    }
     if (mode === 'view') {
       if (!empty) open(node);
       else if (libraryOpen()) Library.open(node.dataset.id);      // the open Kütüphane is waiting for a target
@@ -701,7 +713,7 @@
     if (!node.classList.contains('armed')) { disarm(); node.classList.add('armed'); return; }
     if (empty && window.Library) Library.open(id);
   }
-  var lastTap = { id: null, at: 0 };
+  var lastTap = { id: null, at: 0 }, clickTimer = null;
   function disarm() { document.querySelectorAll('.tile.armed').forEach(function (n) { n.classList.remove('armed'); }); }
   // a tap outside the tiles hides the buttons again
   document.addEventListener('click', function (e) { if (!e.target.closest('.tile, .ask, .movebar, .toast')) disarm(); });
@@ -719,7 +731,7 @@
     var del = e.target.closest('.del');
     if (del) { e.stopPropagation(); removeTile(del.closest('.tile').dataset.id); return; }
     var node = e.target.closest('.tile');
-    if (node) activate(node);
+    if (node) activate(node, e);
   });
   $('feed').addEventListener('keydown', function (e) {
     if (e.target.closest('.add, .del, .addend')) return;
