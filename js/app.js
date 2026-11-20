@@ -674,13 +674,13 @@
   window.addEventListener('scroll', function () { lastScroll = Date.now(); }, { passive: true });
   $('feed').addEventListener('touchstart', function (e) {
     var p = e.touches[0];
-    gest = { x: p.clientX, y: p.clientY, moved: false, busy: Date.now() - lastScroll < 150 };
+    gest = { x: p.clientX, y: p.clientY, moved: false, busy: Date.now() - lastScroll < 150, held: false };
   }, { passive: true });
   $('feed').addEventListener('touchmove', function (e) {
     var p = e.touches[0];
     if (Math.abs(p.clientX - gest.x) > 10 || Math.abs(p.clientY - gest.y) > 10) gest.moved = true;
   }, { passive: true });
-  function notATap() { return touch && (gest.moved || gest.busy); }
+  function notATap() { return touch && (gest.moved || gest.busy || gest.held); }
 
   function libraryOpen() { return !$('lib').hidden; }
 
@@ -840,6 +840,97 @@
     moveTile(id, s.id, s.side);
   });
   $('mv-cancel').addEventListener('click', endPick);
+
+  // ---- 4.5 phone (Düzenle): hold a tile ~half a second → a calendar; the tile moves to that day
+  //      (after that day's other tiles) and takes its date ----
+  var hold = null, HOLD_MS = 500;
+  function cancelHold() {
+    if (!hold) return;
+    clearTimeout(hold.timer); clearTimeout(hold.pressTimer);
+    hold.node.classList.remove('holding');
+    hold = null;
+  }
+  $('feed').addEventListener('touchstart', function (e) {
+    cancelHold();
+    if (!touch || mode !== 'edit' || pick || e.touches.length > 1 || gest.busy) return;
+    if (e.target.closest('.add, .del')) return;
+    var node = e.target.closest('.tile[data-id]');
+    if (!node) return;
+    hold = { node: node, id: node.dataset.id };
+    hold.pressTimer = setTimeout(function () { if (hold) hold.node.classList.add('holding'); }, 150);
+    hold.timer = setTimeout(function () {
+      if (!hold || gest.moved) { cancelHold(); return; }
+      var id = hold.id;
+      gest.held = true;                  // the click that follows is not a tap
+      cancelHold();
+      if (navigator.vibrate) navigator.vibrate(15);
+      askMoveDate(id);
+    }, HOLD_MS);
+  }, { passive: true });
+  $('feed').addEventListener('touchmove', function () { if (hold && gest.moved) cancelHold(); }, { passive: true });
+  $('feed').addEventListener('touchend', function () {
+    if (hold) cancelHold();
+    // the finger that held is lifting now: the tap the phone makes from it must not reach the calendar
+    if (liftGuard) { liftGuard = false; swallowUntil = Date.now() + 300; }
+  }, { passive: true });
+  var liftGuard = false, swallowUntil = 0;
+  document.addEventListener('click', function (e) {
+    if (Date.now() < swallowUntil && e.target.closest && e.target.closest('#movedate')) { swallowUntil = 0; e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  $('feed').addEventListener('touchcancel', cancelHold, { passive: true });
+  $('feed').addEventListener('contextmenu', function (e) { if (touch && e.target.closest('.tile')) e.preventDefault(); });
+
+  var dateFor = null;
+  function askMoveDate(id) {
+    var t = findTile(id);
+    if (!t) return;
+    dateFor = id;
+    $('md-title').textContent = 'Hangi güne taşınsın?';
+    $('md-from').textContent = (t.title ? t.title + ' · ' : '') + (parse(t.date) ? 'şimdi ' + chip(parse(t.date)) : 'tarihsiz');
+    $('md-date').value = t.date || iso(new Date());
+    liftGuard = true;
+    $('movedate').hidden = false;
+    $('md-date').focus();
+  }
+  function closeMoveDate() { $('movedate').hidden = true; dateFor = null; }
+  $('md-cancel').addEventListener('click', closeMoveDate);
+  $('movedate').addEventListener('click', function (e) { if (e.target === $('movedate')) closeMoveDate(); });
+  $('md-go').addEventListener('click', function () {
+    var v = $('md-date').value, id = dateFor;
+    if (!parse(v)) { $('md-date').focus(); return; }
+    closeMoveDate();
+    moveToDate(id, v);
+  });
+
+  function moveToDate(id, date) {
+    var from = indexOf(id);
+    if (from < 0) return false;
+    var t = plan.tiles[from], oldDate = t.date;
+    plan.tiles.splice(from, 1);
+    // after the last shown tile on or before that day; else before the first shown tile
+    var at = -1;
+    for (var k = 0; k < plan.tiles.length; k++) {
+      var o = plan.tiles[k];
+      if (!o.archived && o.date && o.date <= date) at = k + 1;
+    }
+    if (at < 0) { at = 0; for (k = 0; k < plan.tiles.length; k++) if (!plan.tiles[k].archived) { at = k; break; } }
+    plan.tiles.splice(at, 0, t);
+    t.date = date;
+    if (at === from && date === oldDate) return false;
+    if (!persist('Kutu taşındı')) { plan.tiles.splice(at, 1); plan.tiles.splice(from, 0, t); t.date = oldDate; return false; }
+    render();
+    flash(id);
+    toast('Kutu taşındı: ' + chip(parse(date)) + '.', 'Geri al', function () {
+      var i = indexOf(id);
+      if (i < 0) return;
+      plan.tiles.splice(i, 1);
+      plan.tiles.splice(Math.min(from, plan.tiles.length), 0, t);
+      t.date = oldDate;
+      if (persist('Geri alındı')) { render(); flash(id); }
+    }, 7000);
+    return true;
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('movedate').hidden) closeMoveDate(); });
 
   var dragId = null;
   $('feed').addEventListener('dragstart', function (e) {

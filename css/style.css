@@ -268,3 +268,7 @@ body.picking .add, body.picking .del, body.picking .mode { display: none; }
 .movebar span { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; }
 .movebar .dbtn { min-height: 44px; flex: none; }
 body.picking .wrap { padding-bottom: 90px; }
+/* 4.5 phone: long hold → calendar */
+.tile.holding { transform: scale(.96); transition: transform .35s ease-out; }
+.mdate { font: inherit; font-size: 16px; min-height: 48px; padding: 0 12px; border: 1.5px solid var(--fg); border-radius: 10px; background: var(--bg); color: var(--fg); width: 100%; }
+#md-go { min-height: 48px; }
