@@ -10,19 +10,16 @@
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.4; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
-h1 { margin: 0; text-wrap: balance; }
+h1 { margin: 0; }
+/* visually hidden, still read by screen readers */
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .wrap { max-width: 935px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 56px max(16px, env(safe-area-inset-left, 0px)); }
 
 /* header */
-.top { padding-block: 20px 8px; display: flex; flex-direction: column; gap: 8px; }
-.top h1 { font-size: 23px; letter-spacing: -.01em; }
-.sub { margin: 0; font-size: 13.5px; color: var(--muted); }
-.key { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; font-size: 12px; font-weight: 600; text-align: center; color: var(--muted); }
-.key span { padding: 6px 4px; background: var(--soft); }
-.key span:last-child { background: transparent; border: 1.5px dashed #b9b6be; }
+.top { padding-block: 12px 4px; display: flex; flex-direction: column; gap: 8px; }
 
 /* Drive library */
-.drive { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.drive { display: flex; flex-direction: column; gap: 8px; }
 .drow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .dbtn { font: inherit; font-size: 14px; font-weight: 700; color: var(--bg); background: var(--fg); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
 .dbtn:disabled { opacity: .5; cursor: wait; }
