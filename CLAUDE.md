@@ -32,10 +32,11 @@ See `README.md` for structure and how to run it.
 - Words on screen are plain and short.
 
 ## Design rules (starting point, will develop)
-- Clean white and black, the Doc 2 look: one continuous 3-column grid, 4:5 tiles, a black week band on a week's first tile, a pinned week bar and week tabs.
+- Clean white and black, the Doc 2 look: one continuous 3-column grid, 4:5 tiles, a black week band on a week's first tile, a pinned week bar and week tabs. No page title or legend at the top: the Drive / Yedek buttons, then the tabs.
 - Each tile is one post: single image, carousel (swipeable) or video. Uploading any of them works the same way.
 - Empty slots are dashed. Full tiles never accept drops.
-- A mode bar at the top that never collapses (Görüntüle · Ekle · Taşı · Sil) prevents accidental moves and deletes.
+- Phone: two modes, Görüntüle (always at start, nothing can change) and Düzenle, switched with one round button at the bottom right. No bar: vertical space goes to the grid. The computer has no modes (hover buttons, drag to move, double-click for the calendar).
+- No accidental changes while scrolling: touches that move or start while the page is moving are not taps.
 
 ## Starting data
 - The app opens with the Doc 2 skeleton (tile order, dates, titles, images) from `data/seed.js`, made once by `tools/make_seed.py` from the old Doc 2 page. Saved edits in localStorage win over the skeleton.
@@ -65,7 +66,15 @@ How features are named: **Feature N: short name**, and its parts **N.1, N.2…**
 - **Feature 3: Feed fixes** (branch `feature-3-feed-fixes`)
   - **3.1 Labels removed:** no more "Aynı ürün" / "Benzer" on tiles or in the large view. The `match` data stays in saved plans, unused.
   - **3.2 Week ruler follows the tiles:** tabs, the black week band and the pinned bar show the first to last tile date of each week ("H5 30 Kas–1 Ara", one day = "H7 14 Ara"); theme chips still use the calendar week. Weeks with no tiles get no tab. At the bottom of the page the last week is current, at the top the first; a tapped tab is current at once; the highlighted tab scrolls into view in the tab row.
-- **Feature 4: Mode bar and moving tiles:** Görüntüle · Ekle · Taşı · Sil, only the active mode's actions work; drag to move (long-press on a phone).
+- **Feature 4: Edit mode and moving tiles** (branch `feature-4-edit-move`)
+  - **4.1 Top cleaned up:** title, subtitle and the Carousel / Reel / Boş kutu key removed (the title stays hidden for screen readers).
+  - **4.2 Phone modes:** round switch bottom right. Görüntüle: a tap opens the tile; no + / × / "+ Yeni kutu". Düzenle: + and × always visible, a tap on an empty tile opens the Kütüphane, a single tap on a full tile does nothing. Touches that move, or start within 150 ms of a page scroll, are ignored.
+  - **4.3 Computer: drag to move:** a pink line on the left/right edge of the tile under the pointer (or on "+ Yeni kutu" = the end) shows where it lands. A moved tile takes the date of its new place (the tile before it, or the one after it when it lands first). "Geri al" restores place and date.
+  - **4.4 Phone: tap-tap to move (Düzenle):** double tap a full tile → it lifts; tap a tile → the line on the side tapped; bottom bar "Buraya taşı" / "Vazgeç". Same date rule.
+  - **4.5 Phone: long hold → calendar (Düzenle):** hold a tile ~0.5 s → "Hangi güne taşınsın?"; the tile moves after that day's tiles and takes that date. The finger lifting after the hold never presses anything in the calendar.
+  - **4.6 Phone: buttons only on the tapped tile (Düzenle):** all buttons at once were too crowded. The first tap shows that tile's + and × (black outline), like hover on a computer; a second tap on an empty tile opens the Kütüphane; a tap outside the tiles hides them. Double tap (move) and hold (calendar) unchanged. This replaces "always visible" from 4.2.
+  - **4.7 Computer: double-click → calendar:** double-clicking a tile opens the same "Hangi güne taşınsın?" calendar as the phone's hold. A single click waits ~0.25 s (so a double-click never opens the large view or the Kütüphane first), then works as before.
+  - **4.8 Drive sentence removed:** "Görseller Google Drive'dan gelir." is gone (phone and computer). The status spot next to the buttons stays empty and takes no space; it still shows "Bağlandı" and sign-in errors.
 - **Feature 5: Plan saved in Drive:** the same plan on every device and person. Until then: the Excel backup.
 
 ## Workflow

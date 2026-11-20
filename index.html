@@ -8,19 +8,17 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Crect width='30' height='30' rx='6' fill='%23111'/%3E%3Cg fill='%23fff'%3E%3Crect x='5' y='5' width='6' height='6'/%3E%3Crect x='12' y='5' width='6' height='6'/%3E%3Crect x='19' y='5' width='6' height='6'/%3E%3Crect x='5' y='12' width='6' height='6'/%3E%3Crect x='12' y='12' width='6' height='6'/%3E%3Crect x='19' y='12' width='6' height='6' fill='%23E8435A'/%3E%3Crect x='5' y='19' width='6' height='6'/%3E%3Crect x='12' y='19' width='6' height='6'/%3E%3C/g%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=3.2">
+  <link rel="stylesheet" href="css/style.css?v=4.8">
 </head>
 <body>
   <div class="wrap">
     <header class="top">
-      <h1>Visual Feed Planner</h1>
-      <p class="sub">Paylaşımların sırası, gün gün. Boş kutuya dokun, Drive'dan doldur.</p>
-      <div class="key"><span>Carousel</span><span>Reel</span><span>Boş kutu</span></div>
+      <h1 class="vh">Visual Feed Planner</h1>
       <section class="drive" aria-label="Google Drive kütüphanesi">
         <div class="drow">
           <button class="dbtn" id="dconnect" type="button">Drive'a bağlan</button>
           <button class="dbtn ghost" id="bk-open" type="button">Yedek</button>
-          <span class="dstatus" id="dstatus" role="status">Görseller Google Drive'dan gelir.</span>
+          <span class="dstatus" id="dstatus" role="status"></span>
         </div>
       </section>
     </header>
@@ -105,15 +103,39 @@
     </div>
   </div>
 
+  <!-- 4.2 phone only: switch between Görüntüle and Düzenle -->
+  <button class="mode" id="mode" type="button" aria-pressed="false" aria-label="Düzenle">
+    <svg class="i-edit" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2"/></svg>
+    <svg class="i-done" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <!-- 4.5 phone: long hold → move to a day -->
+  <div class="ask" id="movedate" hidden role="dialog" aria-modal="true" aria-labelledby="md-title">
+    <div class="abox">
+      <b id="md-title">Hangi güne taşınsın?</b>
+      <p id="md-from"></p>
+      <input type="date" id="md-date" class="mdate" aria-label="Gün">
+      <button class="dbtn" id="md-go" type="button">Taşı</button>
+      <button class="acancel" id="md-cancel" type="button">Vazgeç</button>
+    </div>
+  </div>
+
+  <!-- 4.4 phone: moving a picked tile -->
+  <div class="movebar" id="movebar" hidden role="region" aria-label="Kutuyu taşı">
+    <span id="mv-text" role="status"></span>
+    <button class="dbtn ghost" id="mv-cancel" type="button">Vazgeç</button>
+    <button class="dbtn" id="mv-go" type="button" hidden>Buraya taşı</button>
+  </div>
+
   <div class="toast" id="toast" hidden role="status"></div>
 
   <!-- Local Doc 2 skeleton (gitignored). Missing on the published site until F4 brings the plan from Drive. -->
-  <script src="data/seed.js?v=3.2" onerror="window.SEED = null"></script>
-  <script src="js/storage.js?v=3.2"></script>
-  <script src="js/config.js?v=3.2"></script>
-  <script src="js/drive.js?v=3.2"></script>
-  <script src="js/backup.js?v=3.2"></script>
-  <script src="js/app.js?v=3.2"></script>
-  <script src="js/library.js?v=3.2"></script>
+  <script src="data/seed.js?v=4.8" onerror="window.SEED = null"></script>
+  <script src="js/storage.js?v=4.8"></script>
+  <script src="js/config.js?v=4.8"></script>
+  <script src="js/drive.js?v=4.8"></script>
+  <script src="js/backup.js?v=4.8"></script>
+  <script src="js/app.js?v=4.8"></script>
+  <script src="js/library.js?v=4.8"></script>
 </body>
 </html>

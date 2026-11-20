@@ -176,6 +176,7 @@
       band.id = w.id;
       tile.appendChild(band);
     }
+    tile.draggable = !touch;           // 4.3: on the computer every tile can be dragged to a new place
     tile.setAttribute('role', 'button');
     tile.tabIndex = 0;
     tile.appendChild(delBtn(tile.classList.contains('empty')));
@@ -184,7 +185,6 @@
     if (tile.classList.contains('empty')) {
       tile.setAttribute('aria-label', 'Boş kutu' + (d ? ' ' + chip(d) : '') + ': doldur');
     } else {
-      tile.draggable = false;
       tile.setAttribute('aria-label', (t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi') + (d ? ' ' + chip(d) : '') + (t.title ? ': ' + t.title : ''));
     }
     return tile;
@@ -218,6 +218,7 @@
     $('wbar').hidden = !wk.list.length;
     followWeeks(wk.list);
     markToday();
+    if (pick) showPick();
   }
 
   // ---------- pinned week bar follows the scroll ----------
@@ -649,36 +650,94 @@
     }, function (e) { toast('Doc 2 görselleri bağlanamadı: ' + e.message, null, null, 6000); });
   }
 
-  // ---- clicks and keys on the grid ----
-  function disarm(except) {
-    document.querySelectorAll('.tile.armed').forEach(function (n) { if (n !== except) n.classList.remove('armed'); });
+  // =====================================================================
+  // 4.2 Phone: two modes. Görüntüle (always at start): a tap opens the tile, nothing can change.
+  // Düzenle: "+" and "×" always visible, a tap on an empty tile opens the Kütüphane.
+  // The computer has no modes: "+" and "×" show on hover, a click opens the tile.
+  // =====================================================================
+  var mode = 'view';
+  function setMode(m, quiet) {
+    if (m !== 'edit' && window.endPick) { endPick(); disarm(); }
+    mode = m;
+    document.body.classList.toggle('mode-edit', touch && m === 'edit');
+    document.body.classList.toggle('mode-view', touch && m !== 'edit');
+    var b = $('mode');
+    b.setAttribute('aria-pressed', m === 'edit' ? 'true' : 'false');
+    b.setAttribute('aria-label', m === 'edit' ? 'Düzenlemeyi bitir' : 'Düzenle');
+    if (!quiet) toast(m === 'edit' ? 'Düzenleme açık.' : 'Görüntüleme: değişiklik yapılamaz.');
   }
+  $('mode').addEventListener('click', function () { setMode(mode === 'edit' ? 'view' : 'edit'); });
 
-  function activate(node) {
-    // Phone: the first tap shows the buttons (+ and ×), the second tap opens the tile.
-    if (touch && !node.classList.contains('armed')) { disarm(node); node.classList.add('armed'); return; }
-    if (node.classList.contains('empty')) {
-      if (window.Library) Library.open(node.dataset.id);
+  // No accidental taps while scrolling: a touch that moved, or that started while the page was
+  // still moving, is not a tap.
+  var gest = { x: 0, y: 0, moved: false, busy: false }, lastScroll = 0;
+  window.addEventListener('scroll', function () { lastScroll = Date.now(); }, { passive: true });
+  $('feed').addEventListener('touchstart', function (e) {
+    var p = e.touches[0];
+    gest = { x: p.clientX, y: p.clientY, moved: false, busy: Date.now() - lastScroll < 150, held: false };
+  }, { passive: true });
+  $('feed').addEventListener('touchmove', function (e) {
+    var p = e.touches[0];
+    if (Math.abs(p.clientX - gest.x) > 10 || Math.abs(p.clientY - gest.y) > 10) gest.moved = true;
+  }, { passive: true });
+  function notATap() { return touch && (gest.moved || gest.busy || gest.held); }
+
+  function libraryOpen() { return !$('lib').hidden; }
+
+  function activate(node, e) {
+    var empty = node.classList.contains('empty');
+    if (!touch) {
+      // 4.7 computer: a double-click opens the calendar (move to a day). A single click waits a
+      // moment so the first click of a double-click doesn't open the large view first.
+      clearTimeout(clickTimer);
+      if (e && e.detail >= 2) { askMoveDate(node.dataset.id); return; }
+      var id0 = node.dataset.id;
+      clickTimer = setTimeout(function () {
+        var n = document.querySelector('.tile[data-id="' + id0 + '"]');
+        if (!n) return;
+        empty ? (window.Library && Library.open(id0)) : open(n);
+      }, 260);
       return;
     }
-    open(node);
+    if (mode === 'view') {
+      if (!empty) open(node);
+      else if (libraryOpen()) Library.open(node.dataset.id);      // the open Kütüphane is waiting for a target
+      else toast('Doldurmak için Düzenle\'ye geç.');
+      return;
+    }
+    // Düzenle (4.6): the first tap shows this tile's "+" and "×" (like hover on a computer);
+    // a second tap on an empty tile opens the Kütüphane; a double tap on a full tile picks it up (4.4).
+    var now = Date.now(), id = node.dataset.id;
+    if (!empty && lastTap.id === id && now - lastTap.at < 400) { lastTap = { id: null, at: 0 }; disarm(); startPick(id); return; }
+    lastTap = { id: id, at: now };
+    if (!node.classList.contains('armed')) { disarm(); node.classList.add('armed'); return; }
+    if (empty && window.Library) Library.open(id);
   }
+  var lastTap = { id: null, at: 0 }, clickTimer = null;
+  function disarm() { document.querySelectorAll('.tile.armed').forEach(function (n) { n.classList.remove('armed'); }); }
+  // a tap outside the tiles hides the buttons again
+  document.addEventListener('click', function (e) { if (!e.target.closest('.tile, .ask, .movebar, .toast')) disarm(); });
 
   $('feed').addEventListener('click', function (e) {
+    if (notATap()) { e.stopPropagation(); return; }
+    if (pick) {
+      var to = e.target.closest('.tile[data-id], .addend');
+      if (to && to.dataset.id !== pick) placeTap(to, e.clientX);
+      return;
+    }
     if (e.target.closest('.addend')) { askDate(null, 'r'); return; }
     var add = e.target.closest('.add');
     if (add) { e.stopPropagation(); askDate(add.closest('.tile').dataset.id, add.dataset.side); return; }
     var del = e.target.closest('.del');
     if (del) { e.stopPropagation(); removeTile(del.closest('.tile').dataset.id); return; }
     var node = e.target.closest('.tile');
-    if (node) activate(node);
+    if (node) activate(node, e);
   });
   $('feed').addEventListener('keydown', function (e) {
     if (e.target.closest('.add, .del, .addend')) return;
     var node = e.target.closest('.tile');
-    if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); disarm(); node.classList.add('armed'); open(node); }
+    if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(node); }
   });
-  document.addEventListener('click', function (e) { if (!e.target.closest('.tile')) disarm(); });
 
   // ---- drag from the library onto the grid (computer) ----
   var DT = 'application/x-vfp-items';
@@ -708,9 +767,227 @@
     if (fill(node.dataset.id, items) && window.Library) Library.clearSelection();
   });
   document.addEventListener('dragend', clearDrag);
+
+  // =====================================================================
+  // 4.3 / 4.4 Move a tile. It lands left or right of another tile (or at the end) and takes the
+  // date of its new place: the tile just before it, or the tile after it when it lands first.
+  // =====================================================================
+  var MT = 'application/x-vfp-move';
+  function moving(e) { return Array.prototype.indexOf.call(e.dataTransfer.types, MT) >= 0; }
+
+  function placeDate(i) {
+    for (var k = i - 1; k >= 0; k--) { var t = plan.tiles[k]; if (!t.archived && parse(t.date)) return t.date; }
+    for (k = i + 1; k < plan.tiles.length; k++) { t = plan.tiles[k]; if (!t.archived && parse(t.date)) return t.date; }
+    return '';
+  }
+
+  /** targetId = null → the end of the plan. side: 'l' | 'r'. */
+  function moveTile(id, targetId, side) {
+    if (id === targetId) return false;
+    var from = indexOf(id);
+    if (from < 0) return false;
+    var t = plan.tiles[from], oldDate = t.date;
+    plan.tiles.splice(from, 1);
+    var at = targetId ? indexOf(targetId) + (side === 'l' ? 0 : 1) : plan.tiles.length;
+    plan.tiles.splice(at, 0, t);
+    t.date = placeDate(at) || t.date;
+    if (at === from && t.date === oldDate) return false;     // same place, nothing to do
+    if (!persist('Kutu taşındı')) { plan.tiles.splice(at, 1); plan.tiles.splice(from, 0, t); t.date = oldDate; return false; }
+    render();
+    flash(id);
+    var d = parse(t.date);
+    toast('Kutu taşındı' + (d && t.date !== oldDate ? ': ' + chip(d) : '') + '.', 'Geri al', function () {
+      var i = indexOf(id);
+      if (i < 0) return;
+      plan.tiles.splice(i, 1);
+      plan.tiles.splice(Math.min(from, plan.tiles.length), 0, t);
+      t.date = oldDate;
+      if (persist('Geri alındı')) { render(); flash(id); }
+    }, 7000);
+    return true;
+  }
+
+  // The line: on the left or right edge of the tile under the pointer, whichever half it is over.
+  function clearLine() { document.querySelectorAll('.line-l, .line-r').forEach(function (n) { n.classList.remove('line-l', 'line-r'); }); }
+  function lineAt(node, x) {
+    clearLine();
+    if (!node) return null;
+    if (node.classList.contains('addend')) { node.classList.add('line-l'); return { id: null, side: 'r' }; }
+    var b = node.getBoundingClientRect(), side = x < b.left + b.width / 2 ? 'l' : 'r';
+    node.classList.add('line-' + side);
+    return { id: node.dataset.id, side: side };
+  }
+
+  // ---- 4.4 phone (Düzenle): double tap a full tile → it lifts; tap where it should go → a line;
+  //      "Buraya taşı" moves it, "Vazgeç" leaves everything as it was ----
+  var pick = null, spot = null;
+  function startPick(id) {
+    pick = id; spot = null;
+    document.body.classList.add('picking');
+    showPick();
+    $('mv-text').textContent = 'Nereye? Bir kutuya dokun.';
+    $('mv-go').hidden = true;
+    $('movebar').hidden = false;
+  }
+  function showPick() {              // also after a redraw
+    var n = pick && document.querySelector('.tile[data-id="' + pick + '"]');
+    if (n) n.classList.add('picked');
+    if (spot) {
+      var s = spot.id ? document.querySelector('.tile[data-id="' + spot.id + '"]') : document.querySelector('.addend');
+      if (s) s.classList.add(spot.id ? 'line-' + spot.side : 'line-l');
+    }
+  }
+  function endPick() {
+    pick = null; spot = null;
+    clearLine();
+    document.body.classList.remove('picking');
+    document.querySelectorAll('.picked').forEach(function (n) { n.classList.remove('picked'); });
+    $('movebar').hidden = true;
+  }
+  window.endPick = endPick;
+  function placeTap(node, x) {
+    spot = lineAt(node, x);
+    $('mv-text').textContent = spot.id ? (spot.side === 'l' ? 'Soluna: ' : 'Sağına: ') + tileLabel(spot.id) : 'En sona';
+    $('mv-go').hidden = false;
+  }
+  $('mv-go').addEventListener('click', function () {
+    if (!pick || !spot) return;
+    var id = pick, s = spot;
+    endPick();
+    moveTile(id, s.id, s.side);
+  });
+  $('mv-cancel').addEventListener('click', endPick);
+
+  // ---- 4.5 phone (Düzenle): hold a tile ~half a second → a calendar; the tile moves to that day
+  //      (after that day's other tiles) and takes its date ----
+  var hold = null, HOLD_MS = 500;
+  function cancelHold() {
+    if (!hold) return;
+    clearTimeout(hold.timer); clearTimeout(hold.pressTimer);
+    hold.node.classList.remove('holding');
+    hold = null;
+  }
+  $('feed').addEventListener('touchstart', function (e) {
+    cancelHold();
+    if (!touch || mode !== 'edit' || pick || e.touches.length > 1 || gest.busy) return;
+    if (e.target.closest('.add, .del')) return;
+    var node = e.target.closest('.tile[data-id]');
+    if (!node) return;
+    hold = { node: node, id: node.dataset.id };
+    hold.pressTimer = setTimeout(function () { if (hold) hold.node.classList.add('holding'); }, 150);
+    hold.timer = setTimeout(function () {
+      if (!hold || gest.moved) { cancelHold(); return; }
+      var id = hold.id;
+      gest.held = true;                  // the click that follows is not a tap
+      cancelHold();
+      if (navigator.vibrate) navigator.vibrate(15);
+      askMoveDate(id);
+    }, HOLD_MS);
+  }, { passive: true });
+  $('feed').addEventListener('touchmove', function () { if (hold && gest.moved) cancelHold(); }, { passive: true });
+  $('feed').addEventListener('touchend', function () {
+    if (hold) cancelHold();
+    // the finger that held is lifting now: the tap the phone makes from it must not reach the calendar
+    if (liftGuard) { liftGuard = false; swallowUntil = Date.now() + 300; }
+  }, { passive: true });
+  var liftGuard = false, swallowUntil = 0;
+  document.addEventListener('click', function (e) {
+    if (Date.now() < swallowUntil && e.target.closest && e.target.closest('#movedate')) { swallowUntil = 0; e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  $('feed').addEventListener('touchcancel', cancelHold, { passive: true });
+  $('feed').addEventListener('contextmenu', function (e) { if (touch && e.target.closest('.tile')) e.preventDefault(); });
+
+  var dateFor = null;
+  function askMoveDate(id) {
+    var t = findTile(id);
+    if (!t) return;
+    dateFor = id;
+    $('md-title').textContent = 'Hangi güne taşınsın?';
+    $('md-from').textContent = (t.title ? t.title + ' · ' : '') + (parse(t.date) ? 'şimdi ' + chip(parse(t.date)) : 'tarihsiz');
+    $('md-date').value = t.date || iso(new Date());
+    liftGuard = true;
+    $('movedate').hidden = false;
+    $('md-date').focus();
+  }
+  function closeMoveDate() { $('movedate').hidden = true; dateFor = null; }
+  $('md-cancel').addEventListener('click', closeMoveDate);
+  $('movedate').addEventListener('click', function (e) { if (e.target === $('movedate')) closeMoveDate(); });
+  $('md-go').addEventListener('click', function () {
+    var v = $('md-date').value, id = dateFor;
+    if (!parse(v)) { $('md-date').focus(); return; }
+    closeMoveDate();
+    moveToDate(id, v);
+  });
+
+  function moveToDate(id, date) {
+    var from = indexOf(id);
+    if (from < 0) return false;
+    var t = plan.tiles[from], oldDate = t.date;
+    plan.tiles.splice(from, 1);
+    // after the last shown tile on or before that day; else before the first shown tile
+    var at = -1;
+    for (var k = 0; k < plan.tiles.length; k++) {
+      var o = plan.tiles[k];
+      if (!o.archived && o.date && o.date <= date) at = k + 1;
+    }
+    if (at < 0) { at = 0; for (k = 0; k < plan.tiles.length; k++) if (!plan.tiles[k].archived) { at = k; break; } }
+    plan.tiles.splice(at, 0, t);
+    t.date = date;
+    if (at === from && date === oldDate) return false;
+    if (!persist('Kutu taşındı')) { plan.tiles.splice(at, 1); plan.tiles.splice(from, 0, t); t.date = oldDate; return false; }
+    render();
+    flash(id);
+    toast('Kutu taşındı: ' + chip(parse(date)) + '.', 'Geri al', function () {
+      var i = indexOf(id);
+      if (i < 0) return;
+      plan.tiles.splice(i, 1);
+      plan.tiles.splice(Math.min(from, plan.tiles.length), 0, t);
+      t.date = oldDate;
+      if (persist('Geri alındı')) { render(); flash(id); }
+    }, 7000);
+    return true;
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('movedate').hidden) closeMoveDate(); });
+
+  var dragId = null;
+  $('feed').addEventListener('dragstart', function (e) {
+    var node = e.target.closest && e.target.closest('.tile[data-id]');
+    if (!node || touch) return;
+    dragId = node.dataset.id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(MT, dragId);
+    setTimeout(function () { node.classList.add('lifted'); }, 0);
+  });
+  $('feed').addEventListener('dragover', function (e) {
+    if (!moving(e)) return;
+    var node = e.target.closest('.tile[data-id], .addend');
+    if (!node || node.dataset.id === dragId) { clearLine(); return; }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    lineAt(node, e.clientX);
+  });
+  $('feed').addEventListener('drop', function (e) {
+    if (!moving(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var node = e.target.closest('.tile[data-id], .addend'), id = e.dataTransfer.getData(MT);
+    var spot = node && node.dataset.id !== id ? lineAt(node, e.clientX) : null;
+    clearLine();
+    if (spot) moveTile(id, spot.id, spot.side);
+  });
+  document.addEventListener('dragend', function () {
+    clearLine();
+    document.querySelectorAll('.lifted').forEach(function (n) { n.classList.remove('lifted'); });
+    dragId = null;
+  });
   // Files dragged in from the computer are not used (media comes from Drive): don't let the browser open them.
   document.addEventListener('dragover', function (e) { if (!ours(e)) e.preventDefault(); });
-  document.addEventListener('drop', function (e) { if (!ours(e)) { e.preventDefault(); toast('Önce dosyayı Drive klasörüne ekle, sonra Kütüphane\'den seç.'); } });
+  document.addEventListener('drop', function (e) {
+    if (ours(e)) return;
+    e.preventDefault();
+    if (moving(e)) return;            // a tile dropped outside the grid: it stays where it was
+    toast('Önce dosyayı Drive klasörüne ekle, sonra Kütüphane\'den seç.');
+  });
 
   // ---- for the Yedek panel (js/backup.js) ----
   function kindName(t) { return isBlank(t) ? 'Boş' : t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi'; }
@@ -756,5 +1033,6 @@
     Backup.snapshot(plan, 'Açılış');
   }
 
+  setMode('view', true);
   render();
 })();

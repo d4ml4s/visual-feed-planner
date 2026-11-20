@@ -10,25 +10,23 @@
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.4; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
-h1 { margin: 0; text-wrap: balance; }
+h1 { margin: 0; }
+/* visually hidden, still read by screen readers */
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .wrap { max-width: 935px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 56px max(16px, env(safe-area-inset-left, 0px)); }
 
 /* header */
-.top { padding-block: 20px 8px; display: flex; flex-direction: column; gap: 8px; }
-.top h1 { font-size: 23px; letter-spacing: -.01em; }
-.sub { margin: 0; font-size: 13.5px; color: var(--muted); }
-.key { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; font-size: 12px; font-weight: 600; text-align: center; color: var(--muted); }
-.key span { padding: 6px 4px; background: var(--soft); }
-.key span:last-child { background: transparent; border: 1.5px dashed #b9b6be; }
+.top { padding-block: 12px 4px; display: flex; flex-direction: column; gap: 8px; }
 
 /* Drive library */
-.drive { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.drive { display: flex; flex-direction: column; gap: 8px; }
 .drow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .dbtn { font: inherit; font-size: 14px; font-weight: 700; color: var(--bg); background: var(--fg); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
 .dbtn:disabled { opacity: .5; cursor: wait; }
 #lplace:disabled { opacity: .35; cursor: not-allowed; }
 .dbtn:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
 .dstatus { font-size: 13px; color: var(--muted); }
+.dstatus:empty { display: none; }   /* only shows when there is something to say (Bağlandı, an error) */
 .dstatus.bad { color: var(--pink-d); font-weight: 600; }
 
 /* week tabs + pinned bar */
@@ -115,10 +113,12 @@ h1 { margin: 0; text-wrap: balance; }
 .del::after { transform: rotate(-45deg); }
 .add:focus-visible, .del:focus-visible { opacity: 1; pointer-events: auto; outline: 3px solid var(--pink); }
 @media (hover: hover) { .tile:hover .add, .tile:hover .del { opacity: 1; pointer-events: auto; } }
-.tile.armed .add, .tile.armed .del { opacity: 1; pointer-events: auto; }
+/* phone: "+" and "×" only in Düzenle, and then always visible */
+/* phone, Düzenle (4.6): "+" and "×" only on the tile you tapped, like hover on a computer */
+body.mode-edit .tile.armed .add, body.mode-edit .tile.armed .del { opacity: 1; pointer-events: auto; }
+body.mode-edit .tile.armed { outline: 2px solid var(--fg); outline-offset: -2px; }
 /* on a phone the visible circle stays small, but the finger target is larger */
 @media (hover: none) { .add, .del { width: 28px; height: 28px; } .add { margin-top: -14px; } }
-.tile.armed { outline: 2px solid var(--fg); outline-offset: -2px; }
 .empty { cursor: pointer; }
 .empty:hover { border-color: var(--fg); }
 .tile.target { border: 2.5px solid var(--pink); }
@@ -230,3 +230,48 @@ body.lib-open .toast { bottom: calc(64vh + 12px); }
 .bbtn:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
 .bnow { flex: none; font-size: 12px; font-weight: 700; color: var(--muted); padding: 0 6px; }
 @media (hover: none) { .bbtn { min-height: 40px; } }
+
+/* ---------- Feature 4: phone modes ---------- */
+.mode { display: none; }
+@media (hover: none) {
+  .mode { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 12;
+    width: 56px; height: 56px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); color: var(--fg); box-shadow: inset 0 0 0 2px var(--fg), 0 4px 16px rgba(0,0,0,.22); }
+  .mode svg { width: 26px; height: 26px; }
+  .mode .i-done { display: none; }
+  .mode[aria-pressed="true"] { background: var(--fg); color: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  .mode[aria-pressed="true"] .i-edit { display: none; }
+  .mode[aria-pressed="true"] .i-done { display: block; }
+  .mode:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+  body.lib-open .mode { display: none; }
+  /* keep notices clear of the switch */
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+  /* Görüntüle: nothing to add */
+  body.mode-view .addend { display: none; }
+  /* Düzenle: a thin frame around the grid says "you can change things now" */
+  body.mode-edit .feed { outline: 2px solid var(--fg); outline-offset: 4px; border-radius: 2px; }
+}
+
+/* ---------- Feature 4: moving tiles ---------- */
+@media (hover: hover) { .tile[draggable="true"] { cursor: grab; } }
+.tile img { -webkit-user-drag: none; }
+.tile.lifted { opacity: .35; }
+/* where the tile will land: a bar on the left or right edge (overflow visible so it sits in the gap) */
+.tile.line-l, .tile.line-r { overflow: visible; }
+.tile.line-l::before, .tile.line-r::before { content: ""; position: absolute; top: -4px; bottom: -4px; width: 5px; border-radius: 3px; background: var(--pink); z-index: 5; box-shadow: 0 0 0 2px var(--bg); }
+.tile.line-l::before { left: -4px; }
+.tile.line-r::before { right: -4px; }
+/* 4.4 phone: a picked tile and the bar to confirm the move */
+@media (hover: none) { .tile, .addend { touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }   /* no double-tap zoom, no blue selection on tiles */
+.tile.picked { outline: 3px solid var(--pink); outline-offset: -3px; }
+.tile.picked > * { opacity: .55; }
+body.picking .add, body.picking .del, body.picking .mode { display: none; }
+.movebar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 13; background: var(--bg); box-shadow: 0 -4px 20px rgba(0,0,0,.18);
+  display: flex; align-items: center; gap: 8px; padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.movebar span { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; }
+.movebar .dbtn { min-height: 44px; flex: none; }
+body.picking .wrap { padding-bottom: 90px; }
+/* 4.5 phone: long hold → calendar */
+.tile.holding { transform: scale(.96); transition: transform .35s ease-out; }
+.mdate { font: inherit; font-size: 16px; min-height: 48px; padding: 0 12px; border: 1.5px solid var(--fg); border-radius: 10px; background: var(--bg); color: var(--fg); width: 100%; }
+#md-go { min-height: 48px; }
