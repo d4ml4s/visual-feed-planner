@@ -282,3 +282,5 @@ body.picking .wrap { padding-bottom: 90px; }
 .sync.warn { color: var(--fg); font-weight: 600; }
 .sync.act { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .sync:disabled { opacity: 1; }
+.blink { font-size: 13px; font-weight: 700; color: var(--fg); }
+#bk-drive { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }

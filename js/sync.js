@@ -57,7 +57,7 @@
         saved(meta);
         Planner.toast('Plan Drive\'a kaydedildi: Visual Feed Planner / plan.json', null, null, 5000);
       });
-    }).catch(function (e) { show('Drive: ' + e.message, 'bad'); });
+    }).catch(problem);
   }
   document.addEventListener('drive:signedin', start);
 
@@ -124,7 +124,7 @@
   var checking = null;
   function check() {
     if (checking || !Drive.canWrite() || !st.fileId) return;
-    checking = Drive.planMeta(st.fileId).then(compare).catch(function (e) { show('Drive: ' + e.message, 'bad'); })
+    checking = Drive.planMeta(st.fileId).then(compare).catch(problem)
       .then(function () { checking = null; });
   }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
@@ -136,6 +136,7 @@
     st.dirty = true;
     keep();
     if (!st.fileId && !Drive.canWrite()) return; // not connected to a Drive plan (yet)
+    if (!Drive.canWrite()) { needAuth(); return; } // the sign-in ran out: kept here, sent after "tekrar bağlan"
     show('Kaydediliyor…');
     clearTimeout(timer);
     timer = setTimeout(push, 2000);
@@ -157,7 +158,7 @@
         saved(m);
         wrote = true;
       });
-    }).catch(function (e) { show('Drive: ' + e.message, 'bad'); })
+    }).catch(problem)
       .then(function () {
         busy = null;
         // new changes arrived while saving → one more round (a failed save is not retried in a loop)
@@ -167,6 +168,45 @@
       });
     return busy;
   }
+
+  // ---- 5.5 sign-in ran out / no internet: everything stays in this browser and goes up later ----
+  function problem(e) {
+    if ((e && e.status === 401) || !Drive.isSignedIn()) return needAuth();
+    if (e && e.status === 404 && st.fileId) {       // the plan file was deleted in Drive: make it again
+      st.fileId = null; st.version = null; keep();
+      return start();
+    }
+    if (!navigator.onLine || e instanceof TypeError) { show('Bağlantı yok, sonra kaydedilecek', 'warn'); return; }
+    show('Drive: ' + e.message, 'bad', function () { push(); });
+  }
+  function needAuth() { show("Drive'a tekrar bağlan", 'bad', reconnect); }
+  function reconnect() {
+    // a click → Google's window may open; after it, "drive:signedin" runs start() and sends what waits
+    Drive.signIn().catch(function (e) { show(e.message, 'bad', reconnect); });
+  }
+  window.addEventListener('online', function () { if (st.dirty && Drive.canWrite()) push(); });
+
+  // ---- Yedek panel: which account and file, last save ----
+  function drawInfo() {
+    var box = $('bk-drive');
+    if (!box) return;
+    box.textContent = '';
+    var line = function (t) { var p = document.createElement('p'); p.className = 'bnote'; p.textContent = t; box.appendChild(p); return p; };
+    if (!st.fileId) { line("Drive'a bağlanınca plan 'Visual Feed Planner / plan.json' dosyasına kaydedilir."); return; }
+    var who = line('Hesap: …');                    // filled in when Google answers
+    Drive.account().then(function (u) {
+      who.textContent = u ? 'Hesap: ' + (u.displayName ? u.displayName + ' · ' : '') + u.emailAddress : '';
+    });
+    line('Dosya: Visual Feed Planner / plan.json' + (st.savedAt ? ' · son kayıt ' + hm(st.savedAt) : '') + (st.dirty ? ' · kaydedilmemiş değişiklik var' : ''));
+    var a = document.createElement('a');
+    a.href = 'https://drive.google.com/file/d/' + st.fileId + '/view';
+    a.target = '_blank'; a.rel = 'noopener';
+    a.className = 'blink';
+    a.textContent = "Drive'da aç";
+    box.appendChild(a);
+  }
+  var bkOpen = $('bk-open');
+  if (bkOpen) bkOpen.addEventListener('click', drawInfo);
 
   window.Sync = { state: function () { return JSON.parse(JSON.stringify(st)); }, check: check, changed: changed, push: push };
 })();
