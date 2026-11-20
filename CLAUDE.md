@@ -74,6 +74,7 @@ How features are named: **Feature N: short name**, and its parts **N.1, N.2…**
   - **4.5 Phone: long hold → calendar (Düzenle):** hold a tile ~0.5 s → "Hangi güne taşınsın?"; the tile moves after that day's tiles and takes that date. The finger lifting after the hold never presses anything in the calendar.
   - **4.6 Phone: buttons only on the tapped tile (Düzenle):** all buttons at once were too crowded. The first tap shows that tile's + and × (black outline), like hover on a computer; a second tap on an empty tile opens the Kütüphane; a tap outside the tiles hides them. Double tap (move) and hold (calendar) unchanged. This replaces "always visible" from 4.2.
   - **4.7 Computer: double-click → calendar:** double-clicking a tile opens the same "Hangi güne taşınsın?" calendar as the phone's hold. A single click waits ~0.25 s (so a double-click never opens the large view or the Kütüphane first), then works as before.
+  - **4.8 Drive sentence removed:** "Görseller Google Drive'dan gelir." is gone (phone and computer). The status spot next to the buttons stays empty and takes no space; it still shows "Bağlandı" and sign-in errors.
 - **Feature 5: Plan saved in Drive:** the same plan on every device and person. Until then: the Excel backup.
 
 ## Workflow

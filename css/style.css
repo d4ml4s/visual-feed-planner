@@ -26,6 +26,7 @@ h1 { margin: 0; }
 #lplace:disabled { opacity: .35; cursor: not-allowed; }
 .dbtn:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
 .dstatus { font-size: 13px; color: var(--muted); }
+.dstatus:empty { display: none; }   /* only shows when there is something to say (Bağlandı, an error) */
 .dstatus.bad { color: var(--pink-d); font-weight: 600; }
 
 /* week tabs + pinned bar */
