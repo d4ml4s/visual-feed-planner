@@ -1,6 +1,7 @@
 /* Visual Feed Planner: renders the plan as the Doc 2 grid; F1 adds tiles and fills them from Drive.
  * Tile model: { id, kind: 'carousel'|'post'|'reel'|'empty', date: 'YYYY-MM-DD'|'', title,
- *               images: [{src, name} | {driveId, name, mime}], video?, match?: 'same'|'similar', style?, label?, note }
+ *               images: [{src, name} | {driveId, name, mime}], video?, style?, label?, note }
+ * Older plans may also carry match: 'same'|'similar'; it is no longer shown (Feature 3.1).
  * Local skeleton images use src; images placed from Drive store only the Drive file id.
  * archived: ISO time when the tile went to the archive (hidden from the grid, kept in the plan).
  */
@@ -36,6 +37,7 @@
   function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
   function chip(d) { return d.getDate() + ' ' + AYK[d.getMonth() + 1] + ' · ' + GUNK[d.getDay()]; }
   function shortRange(a, b) {
+    if (+a === +b) return a.getDate() + ' ' + AYK[a.getMonth() + 1];
     return a.getMonth() === b.getMonth()
       ? a.getDate() + '–' + b.getDate() + ' ' + AYK[b.getMonth() + 1]
       : a.getDate() + ' ' + AYK[a.getMonth() + 1] + '–' + b.getDate() + ' ' + AYK[b.getMonth() + 1];
@@ -48,7 +50,9 @@
   }
 
   // ---------- weeks ----------
-  /** Groups tiles into weeks. Undated tiles belong to the week of the tile before them. */
+  /** Groups tiles into weeks. Undated tiles belong to the week of the tile before them.
+   *  from/to = the first and last tile date in the week (shown on tabs, band and pinned bar, Feature 3.2);
+   *  first/sun = the calendar week, used for the theme chips. */
   function shown() { return plan.tiles.filter(function (t) { return !t.archived; }); }
 
   function weeks() {
@@ -66,10 +70,12 @@
         var id = 'hafta-' + n;
         if (!seen[id]) {
           var first = mon < start ? start : mon, sun = addDays(mon, 6);
-          seen[id] = { id: id, n: n, first: first, sun: sun, firstTileId: t.id };
+          seen[id] = { id: id, n: n, first: first, sun: sun, from: d, to: d, firstTileId: t.id };
           list.push(seen[id]);
         }
         cur = seen[id];
+        if (d < cur.from) cur.from = d;
+        if (d > cur.to) cur.to = d;
       }
       if (cur) byTile[t.id] = cur;
     });
@@ -161,14 +167,12 @@
       tile.classList.add(t.kind === 'reel' ? 'reel' : 'post');
       tile.appendChild(pic(images[0], 600, missText(t, images[0])));
       if (t.kind === 'reel') tile.appendChild(el('span', 'play'));
-      if (t.match === 'same') tile.appendChild(el('span', 'badge same', 'Aynı ürün'));
-      if (t.match === 'similar') tile.appendChild(el('span', 'badge sim', 'Benzer'));
     }
 
     if (d) tile.appendChild(el('span', 'date', chip(d)));
     if (w && w.firstTileId === t.id) {
       tile.classList.add('wstart');
-      var band = el('span', 'wband', 'Hafta ' + w.n + ' · ' + shortRange(w.first, w.sun));
+      var band = el('span', 'wband', 'Hafta ' + w.n + ' · ' + shortRange(w.from, w.to));
       band.id = w.id;
       tile.appendChild(band);
     }
@@ -207,7 +211,7 @@
       var a = el('a', 'tab');
       a.href = '#' + w.id;
       a.appendChild(el('b', null, 'H' + w.n));
-      a.appendChild(document.createTextNode(shortRange(w.first, w.sun)));
+      a.appendChild(document.createTextNode(shortRange(w.from, w.to)));
       tabs.appendChild(a);
     });
     tabs.hidden = !wk.list.length;
@@ -217,9 +221,10 @@
   }
 
   // ---------- pinned week bar follows the scroll ----------
-  var observer = null;
+  var observer = null, follow = null;
   function followWeeks(list) {
     if (observer) observer.disconnect();
+    follow = null;
     if (!list.length) return;
     var byId = {};
     list.forEach(function (w) { byId[w.id] = w; });
@@ -229,18 +234,49 @@
       current = id;
       var w = byId[id];
       $('wt').textContent = 'Hafta ' + w.n;
-      $('wr').textContent = longRange(w.first, w.sun);
+      $('wr').textContent = longRange(w.from, w.to);
       var wc = $('wc');
       wc.textContent = '';
       wc.appendChild(themeChips(w));
       Array.prototype.forEach.call($('tabs').children, function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + id); });
+      // keep the highlighted tab in view in the tab row (phone: the row scrolls sideways)
+      var row = $('tabs'), on = row.querySelector('.tab.on');
+      if (on) {
+        var a = on.getBoundingClientRect(), r = row.getBoundingClientRect();
+        if (a.left < r.left || a.right > r.right) row.scrollLeft += a.left - r.left - 8;
+      }
     }
+    var last = list[list.length - 1].id;
     observer = new IntersectionObserver(function (entries) {
+      if (atBottom()) { setWeek(last); return; }
+      if (atTop()) { setWeek(list[0].id); return; }
       entries.forEach(function (en) { if (en.isIntersecting) setWeek(en.target.dataset.wk); });
     }, { rootMargin: '-130px 0px -70% 0px' });
+    follow = { set: setWeek, first: list[0].id, last: last };
     document.querySelectorAll('.tile[data-wk]').forEach(function (t) { observer.observe(t); });
     setWeek(list[0].id);
   }
+
+  // The last week can sit too low on the page to ever reach the top: at the bottom of the page it becomes current.
+  function atBottom() {
+    var root = document.documentElement;
+    return root.scrollHeight > window.innerHeight + 4 && window.innerHeight + window.scrollY >= root.scrollHeight - 4;
+  }
+  // Before the first week reaches the bar's line (top of the page), the first week is current.
+  function atTop() {
+    var f = document.querySelector('.tile[data-wk]');
+    return !!f && f.getBoundingClientRect().top > 130;
+  }
+  window.addEventListener('scroll', function () {
+    if (!follow) return;
+    if (atBottom()) follow.set(follow.last);
+    else if (atTop()) follow.set(follow.first);
+  }, { passive: true });
+  // A tapped tab is the current week straight away.
+  $('tabs').addEventListener('click', function (e) {
+    var a = e.target.closest('.tab');
+    if (a && follow) follow.set(a.getAttribute('href').slice(1));
+  });
 
   // ---------- today: highlight it and open the page there ----------
   function markToday() {
@@ -289,7 +325,7 @@
         }
       } else v.src = t.video;
       wrap.appendChild(v);
-      var cap = el('div', 'vcount', (t.images[0].name || '') + (t.match === 'same' ? ' · aynı ürün' : t.match === 'similar' ? ' · benzer ürün' : ''));
+      var cap = el('div', 'vcount', t.images[0].name || '');
       vbody.appendChild(wrap);
       vbody.appendChild(cap);
     } else {
