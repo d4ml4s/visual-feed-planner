@@ -649,22 +649,54 @@
     }, function (e) { toast('Doc 2 görselleri bağlanamadı: ' + e.message, null, null, 6000); });
   }
 
-  // ---- clicks and keys on the grid ----
-  function disarm(except) {
-    document.querySelectorAll('.tile.armed').forEach(function (n) { if (n !== except) n.classList.remove('armed'); });
+  // =====================================================================
+  // 4.2 Phone: two modes. Görüntüle (always at start): a tap opens the tile, nothing can change.
+  // Düzenle: "+" and "×" always visible, a tap on an empty tile opens the Kütüphane.
+  // The computer has no modes: "+" and "×" show on hover, a click opens the tile.
+  // =====================================================================
+  var mode = 'view';
+  function setMode(m, quiet) {
+    mode = m;
+    document.body.classList.toggle('mode-edit', touch && m === 'edit');
+    document.body.classList.toggle('mode-view', touch && m !== 'edit');
+    var b = $('mode');
+    b.setAttribute('aria-pressed', m === 'edit' ? 'true' : 'false');
+    b.setAttribute('aria-label', m === 'edit' ? 'Düzenlemeyi bitir' : 'Düzenle');
+    if (!quiet) toast(m === 'edit' ? 'Düzenleme açık.' : 'Görüntüleme: değişiklik yapılamaz.');
   }
+  $('mode').addEventListener('click', function () { setMode(mode === 'edit' ? 'view' : 'edit'); });
+
+  // No accidental taps while scrolling: a touch that moved, or that started while the page was
+  // still moving, is not a tap.
+  var gest = { x: 0, y: 0, moved: false, busy: false }, lastScroll = 0;
+  window.addEventListener('scroll', function () { lastScroll = Date.now(); }, { passive: true });
+  $('feed').addEventListener('touchstart', function (e) {
+    var p = e.touches[0];
+    gest = { x: p.clientX, y: p.clientY, moved: false, busy: Date.now() - lastScroll < 150 };
+  }, { passive: true });
+  $('feed').addEventListener('touchmove', function (e) {
+    var p = e.touches[0];
+    if (Math.abs(p.clientX - gest.x) > 10 || Math.abs(p.clientY - gest.y) > 10) gest.moved = true;
+  }, { passive: true });
+  function notATap() { return touch && (gest.moved || gest.busy); }
+
+  function libraryOpen() { return !$('lib').hidden; }
 
   function activate(node) {
-    // Phone: the first tap shows the buttons (+ and ×), the second tap opens the tile.
-    if (touch && !node.classList.contains('armed')) { disarm(node); node.classList.add('armed'); return; }
-    if (node.classList.contains('empty')) {
-      if (window.Library) Library.open(node.dataset.id);
+    var empty = node.classList.contains('empty');
+    if (!touch) { empty ? (window.Library && Library.open(node.dataset.id)) : open(node); return; }
+    if (mode === 'view') {
+      if (!empty) open(node);
+      else if (libraryOpen()) Library.open(node.dataset.id);      // the open Kütüphane is waiting for a target
+      else toast('Doldurmak için Düzenle\'ye geç.');
       return;
     }
-    open(node);
+    if (empty && window.Library) Library.open(node.dataset.id);
+    // Düzenle: a single tap on a full tile does nothing (no accidental opens).
   }
 
   $('feed').addEventListener('click', function (e) {
+    if (notATap()) { e.stopPropagation(); return; }
     if (e.target.closest('.addend')) { askDate(null, 'r'); return; }
     var add = e.target.closest('.add');
     if (add) { e.stopPropagation(); askDate(add.closest('.tile').dataset.id, add.dataset.side); return; }
@@ -676,9 +708,8 @@
   $('feed').addEventListener('keydown', function (e) {
     if (e.target.closest('.add, .del, .addend')) return;
     var node = e.target.closest('.tile');
-    if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); disarm(); node.classList.add('armed'); open(node); }
+    if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(node); }
   });
-  document.addEventListener('click', function (e) { if (!e.target.closest('.tile')) disarm(); });
 
   // ---- drag from the library onto the grid (computer) ----
   var DT = 'application/x-vfp-items';
@@ -756,5 +787,6 @@
     Backup.snapshot(plan, 'Açılış');
   }
 
+  setMode('view', true);
   render();
 })();

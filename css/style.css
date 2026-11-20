@@ -112,10 +112,10 @@ h1 { margin: 0; }
 .del::after { transform: rotate(-45deg); }
 .add:focus-visible, .del:focus-visible { opacity: 1; pointer-events: auto; outline: 3px solid var(--pink); }
 @media (hover: hover) { .tile:hover .add, .tile:hover .del { opacity: 1; pointer-events: auto; } }
-.tile.armed .add, .tile.armed .del { opacity: 1; pointer-events: auto; }
+/* phone: "+" and "×" only in Düzenle, and then always visible */
+body.mode-edit .add, body.mode-edit .del { opacity: 1; pointer-events: auto; }
 /* on a phone the visible circle stays small, but the finger target is larger */
 @media (hover: none) { .add, .del { width: 28px; height: 28px; } .add { margin-top: -14px; } }
-.tile.armed { outline: 2px solid var(--fg); outline-offset: -2px; }
 .empty { cursor: pointer; }
 .empty:hover { border-color: var(--fg); }
 .tile.target { border: 2.5px solid var(--pink); }
@@ -227,3 +227,24 @@ body.lib-open .toast { bottom: calc(64vh + 12px); }
 .bbtn:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
 .bnow { flex: none; font-size: 12px; font-weight: 700; color: var(--muted); padding: 0 6px; }
 @media (hover: none) { .bbtn { min-height: 40px; } }
+
+/* ---------- Feature 4: phone modes ---------- */
+.mode { display: none; }
+@media (hover: none) {
+  .mode { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 12;
+    width: 56px; height: 56px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); color: var(--fg); box-shadow: inset 0 0 0 2px var(--fg), 0 4px 16px rgba(0,0,0,.22); }
+  .mode svg { width: 26px; height: 26px; }
+  .mode .i-done { display: none; }
+  .mode[aria-pressed="true"] { background: var(--fg); color: var(--bg); box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  .mode[aria-pressed="true"] .i-edit { display: none; }
+  .mode[aria-pressed="true"] .i-done { display: block; }
+  .mode:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+  body.lib-open .mode { display: none; }
+  /* keep notices clear of the switch */
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+  /* Görüntüle: nothing to add */
+  body.mode-view .addend { display: none; }
+  /* Düzenle: a thin frame around the grid says "you can change things now" */
+  body.mode-edit .feed { outline: 2px solid var(--fg); outline-offset: 4px; border-radius: 2px; }
+}
