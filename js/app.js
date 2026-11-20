@@ -411,6 +411,7 @@
     try { Store.save(plan); }
     catch (e) { toast('Kaydedilemedi: tarayıcı hafızası dolu.'); return false; }
     if (window.Backup) { Backup.snapshot(plan, reason); Backup.refresh(); }
+    if (window.Sync) Sync.changed();            // Feature 5: also to Drive, a moment later
     return true;
   }
 

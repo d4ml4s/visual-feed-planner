@@ -104,5 +104,44 @@
   }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
 
-  window.Sync = { state: function () { return JSON.parse(JSON.stringify(st)); }, check: check };
+  // ---- 5.3 save automatically: every change goes to Drive ~2 s later (quick changes go together) ----
+  var timer = null, busy = null, again = false;
+  function changed() {
+    if (applying) return;                      // a plan that came from Drive is not a new change
+    st.dirty = true;
+    keep();
+    if (!st.fileId && !Drive.canWrite()) return; // not connected to a Drive plan (yet)
+    show('Kaydediliyor…');
+    clearTimeout(timer);
+    timer = setTimeout(push, 2000);
+  }
+  function push() {
+    clearTimeout(timer);
+    if (busy) { again = true; return busy; }
+    if (!st.dirty) return Promise.resolve();
+    if (!Drive.canWrite()) return Promise.resolve();
+    if (!st.fileId) return start();
+    var body = text(), wrote = false;
+    busy = Drive.planMeta(st.fileId).then(function (meta) {
+      // someone else saved since our last sync → don't overwrite (5.4 decides)
+      if (st.version && String(meta.version) !== String(st.version)) return compare(meta);
+      return Drive.updatePlan(st.fileId, body, props()).then(function (m) {
+        st.version = m.version;
+        if (text() === body) st.dirty = false;  // changes made while saving go in the next round
+        keep();
+        saved(m);
+        wrote = true;
+      });
+    }).catch(function (e) { show('Drive: ' + e.message, 'bad'); })
+      .then(function () {
+        busy = null;
+        // new changes arrived while saving → one more round (a failed save is not retried in a loop)
+        var more = again || (wrote && st.dirty);
+        again = false;
+        if (more && st.dirty) timer = setTimeout(push, 2000);
+      });
+    return busy;
+  }
+
+  window.Sync = { state: function () { return JSON.parse(JSON.stringify(st)); }, check: check, changed: changed, push: push };
 })();
