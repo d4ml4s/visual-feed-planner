@@ -72,6 +72,7 @@ How features are named: **Feature N: short name**, and its parts **N.1, N.2…**
   - **4.3 Computer: drag to move:** a pink line on the left/right edge of the tile under the pointer (or on "+ Yeni kutu" = the end) shows where it lands. A moved tile takes the date of its new place (the tile before it, or the one after it when it lands first). "Geri al" restores place and date.
   - **4.4 Phone: tap-tap to move (Düzenle):** double tap a full tile → it lifts; tap a tile → the line on the side tapped; bottom bar "Buraya taşı" / "Vazgeç". Same date rule.
   - **4.5 Phone: long hold → calendar (Düzenle):** hold a tile ~0.5 s → "Hangi güne taşınsın?"; the tile moves after that day's tiles and takes that date. The finger lifting after the hold never presses anything in the calendar.
+  - **4.6 Phone: buttons only on the tapped tile (Düzenle):** all buttons at once were too crowded. The first tap shows that tile's + and × (black outline), like hover on a computer; a second tap on an empty tile opens the Kütüphane; a tap outside the tiles hides them. Double tap (move) and hold (calendar) unchanged. This replaces "always visible" from 4.2.
 - **Feature 5: Plan saved in Drive:** the same plan on every device and person. Until then: the Excel backup.
 
 ## Workflow

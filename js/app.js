@@ -657,7 +657,7 @@
   // =====================================================================
   var mode = 'view';
   function setMode(m, quiet) {
-    if (m !== 'edit' && window.endPick) endPick();
+    if (m !== 'edit' && window.endPick) { endPick(); disarm(); }
     mode = m;
     document.body.classList.toggle('mode-edit', touch && m === 'edit');
     document.body.classList.toggle('mode-view', touch && m !== 'edit');
@@ -693,13 +693,18 @@
       else toast('Doldurmak için Düzenle\'ye geç.');
       return;
     }
-    if (empty) { if (window.Library) Library.open(node.dataset.id); return; }
-    // Düzenle: a single tap on a full tile does nothing (no accidental opens); a double tap picks it up (4.4).
+    // Düzenle (4.6): the first tap shows this tile's "+" and "×" (like hover on a computer);
+    // a second tap on an empty tile opens the Kütüphane; a double tap on a full tile picks it up (4.4).
     var now = Date.now(), id = node.dataset.id;
-    if (lastTap.id === id && now - lastTap.at < 400) { lastTap = { id: null, at: 0 }; startPick(id); }
-    else lastTap = { id: id, at: now };
+    if (!empty && lastTap.id === id && now - lastTap.at < 400) { lastTap = { id: null, at: 0 }; disarm(); startPick(id); return; }
+    lastTap = { id: id, at: now };
+    if (!node.classList.contains('armed')) { disarm(); node.classList.add('armed'); return; }
+    if (empty && window.Library) Library.open(id);
   }
   var lastTap = { id: null, at: 0 };
+  function disarm() { document.querySelectorAll('.tile.armed').forEach(function (n) { n.classList.remove('armed'); }); }
+  // a tap outside the tiles hides the buttons again
+  document.addEventListener('click', function (e) { if (!e.target.closest('.tile, .ask, .movebar, .toast')) disarm(); });
 
   $('feed').addEventListener('click', function (e) {
     if (notATap()) { e.stopPropagation(); return; }

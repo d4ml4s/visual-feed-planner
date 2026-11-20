@@ -113,7 +113,9 @@ h1 { margin: 0; }
 .add:focus-visible, .del:focus-visible { opacity: 1; pointer-events: auto; outline: 3px solid var(--pink); }
 @media (hover: hover) { .tile:hover .add, .tile:hover .del { opacity: 1; pointer-events: auto; } }
 /* phone: "+" and "×" only in Düzenle, and then always visible */
-body.mode-edit .add, body.mode-edit .del { opacity: 1; pointer-events: auto; }
+/* phone, Düzenle (4.6): "+" and "×" only on the tile you tapped, like hover on a computer */
+body.mode-edit .tile.armed .add, body.mode-edit .tile.armed .del { opacity: 1; pointer-events: auto; }
+body.mode-edit .tile.armed { outline: 2px solid var(--fg); outline-offset: -2px; }
 /* on a phone the visible circle stays small, but the finger target is larger */
 @media (hover: none) { .add, .del { width: 28px; height: 28px; } .add { margin-top: -14px; } }
 .empty { cursor: pointer; }
