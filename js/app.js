@@ -8,10 +8,11 @@
 (function () {
   'use strict';
 
-  var AYK = ['', 'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-  var AY = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-  var GUNK = ['Paz', 'Pzt', 'Sal', 'Çar', 'Prş', 'Cum', 'Cmt'];          // indexed by Date.getDay()
-  var GUNL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  // Feature 6: texts and month/day names come from js/i18n.js ("tr", because "t" is a tile in this file).
+  var tr = I18N.t;
+  var AYK, AY, GUNK, GUNL;                       // short/long month names, short/long day names (by Date.getDay())
+  function names() { AYK = I18N.names('AYK'); AY = I18N.names('AY'); GUNK = I18N.names('GUNK'); GUNL = I18N.names('GUNL'); }
+  names();
   var DAY = 864e5;
 
   var plan = Store.load();
@@ -101,7 +102,7 @@
 
   // ---------- grid ----------
   function missText(t, im) {
-    if (im.driveId && !(window.Drive && Drive.isSignedIn())) return (t.title ? t.title + ' · ' : '') + "Görmek için Drive'a bağlan";
+    if (im.driveId && !(window.Drive && Drive.isSignedIn())) return (t.title ? t.title + ' · ' : '') + tr("Görmek için Drive'a bağlan");
     return t.title;
   }
   function isVideo(im) { return /^video\//.test(im.mime || ''); }
@@ -109,7 +110,7 @@
   // One picture: Drive files load through Drive.paint (preview, or the image itself if the preview is blocked).
   function pic(im, size, title) {
     if (!im.driveId) return img(im.src, im.name, title);
-    if (!window.Drive) return el('span', 'miss', title || 'Görsel yok');
+    if (!window.Drive) return el('span', 'miss', title || tr('Görsel yok'));
     // Remembered pictures show at once; others load from Drive when signed in.
     var i = el('img');
     i.alt = '';
@@ -140,7 +141,7 @@
       tile.classList.add('empty');
       if (t.style && t.style !== 'ugc') tile.classList.add(t.style);
       tile.appendChild(el('span', 'plus', t.style === 'novid' ? '!' : '+'));
-      tile.appendChild(el('span', 'elbl', t.label || 'Boş kutu'));
+      tile.appendChild(el('span', 'elbl', t.label || tr('Boş kutu')));
     } else if (t.kind === 'carousel') {
       tile.classList.add('car');
       var strip = el('div', 'strip');
@@ -172,7 +173,7 @@
     if (d) tile.appendChild(el('span', 'date', chip(d)));
     if (w && w.firstTileId === t.id) {
       tile.classList.add('wstart');
-      var band = el('span', 'wband', 'Hafta ' + w.n + ' · ' + shortRange(w.from, w.to));
+      var band = el('span', 'wband', tr('Hafta {n}', { n: w.n }) + ' · ' + shortRange(w.from, w.to));
       band.id = w.id;
       tile.appendChild(band);
     }
@@ -180,12 +181,12 @@
     tile.setAttribute('role', 'button');
     tile.tabIndex = 0;
     tile.appendChild(delBtn(tile.classList.contains('empty')));
-    tile.appendChild(addBtn('l', 'Soluna boş kutu ekle'));
-    tile.appendChild(addBtn('r', 'Sağına boş kutu ekle'));
+    tile.appendChild(addBtn('l', tr('Soluna boş kutu ekle')));
+    tile.appendChild(addBtn('r', tr('Sağına boş kutu ekle')));
     if (tile.classList.contains('empty')) {
-      tile.setAttribute('aria-label', 'Boş kutu' + (d ? ' ' + chip(d) : '') + ': doldur');
+      tile.setAttribute('aria-label', tr('{d}: doldur', { d: tr('Boş kutu') + (d ? ' ' + chip(d) : '') }));
     } else {
-      tile.setAttribute('aria-label', (t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi') + (d ? ' ' + chip(d) : '') + (t.title ? ': ' + t.title : ''));
+      tile.setAttribute('aria-label', kindName(t) + (d ? ' ' + chip(d) : '') + (t.title ? ': ' + t.title : ''));
     }
     return tile;
   }
@@ -200,8 +201,8 @@
     var end = el('button', 'tile addend');
     end.type = 'button';
     end.appendChild(el('span', 'plus', '+'));
-    end.appendChild(el('span', 'elbl', 'Yeni kutu'));
-    end.setAttribute('aria-label', 'Sona yeni kutu ekle');
+    end.appendChild(el('span', 'elbl', tr('Yeni kutu')));
+    end.setAttribute('aria-label', tr('Sona yeni kutu ekle'));
     feed.appendChild(end);
     $('empty-plan').hidden = tiles.length > 0;
 
@@ -210,7 +211,7 @@
     wk.list.forEach(function (w) {
       var a = el('a', 'tab');
       a.href = '#' + w.id;
-      a.appendChild(el('b', null, 'H' + w.n));
+      a.appendChild(el('b', null, (I18N.lang() === 'en' ? 'W' : 'H') + w.n));
       a.appendChild(document.createTextNode(shortRange(w.from, w.to)));
       tabs.appendChild(a);
     });
@@ -234,7 +235,7 @@
       if (id === current || !byId[id]) return;
       current = id;
       var w = byId[id];
-      $('wt').textContent = 'Hafta ' + w.n;
+      $('wt').textContent = tr('Hafta {n}', { n: w.n });
       $('wr').textContent = longRange(w.from, w.to);
       var wc = $('wc');
       wc.textContent = '';
@@ -409,7 +410,7 @@
   // Saves the plan; every save is also kept as a version (Geçmiş) with a short reason.
   function persist(reason) {
     try { Store.save(plan); }
-    catch (e) { toast('Kaydedilemedi: tarayıcı hafızası dolu.'); return false; }
+    catch (e) { toast(tr('Kaydedilemedi: tarayıcı hafızası dolu.')); return false; }
     if (window.Backup) { Backup.snapshot(plan, reason); Backup.refresh(); }
     if (window.Sync) Sync.changed();            // Feature 5: also to Drive, a moment later
     return true;
@@ -435,7 +436,7 @@
   function delBtn(empty) {
     var b = el('button', 'del');
     b.type = 'button';
-    b.setAttribute('aria-label', empty ? 'Boş kutuyu sil' : 'Kutuyu arşive kaldır');
+    b.setAttribute('aria-label', empty ? tr('Boş kutuyu sil') : tr('Kutuyu arşive kaldır'));
     return b;
   }
 
@@ -454,7 +455,7 @@
       plan.tiles.splice(i, 1);
       if (!persist('Boş kutu silindi')) { plan.tiles.splice(i, 0, t); return; }
       render();
-      toast('Boş kutu silindi.', 'Geri al', function () {
+      toast(tr('Boş kutu silindi.'), tr('Geri al'), function () {
         plan.tiles.splice(Math.min(i, plan.tiles.length), 0, t);
         if (persist('Geri alındı')) { render(); flash(t.id); }
       }, 7000);
@@ -463,7 +464,7 @@
     t.archived = new Date().toISOString();
     if (!persist('Kutu arşivlendi')) { delete t.archived; return; }
     render();
-    toast('Kutu arşive kaldırıldı.', 'Geri al', function () { unarchive(t.id, 'Geri alındı'); }, 7000);
+    toast(tr('Kutu arşive kaldırıldı.'), tr('Geri al'), function () { unarchive(t.id, 'Geri alındı'); }, 7000);
   }
 
   function unarchive(id, reason) {
@@ -482,7 +483,7 @@
     if (i < 0 || !plan.tiles[i].archived) return;
     var t = plan.tiles.splice(i, 1)[0];
     if (!persist('Arşivden silindi')) { plan.tiles.splice(i, 0, t); return; }
-    toast('Arşivden silindi.', 'Geri al', function () {
+    toast(tr('Arşivden silindi.'), tr('Geri al'), function () {
       plan.tiles.splice(Math.min(i, plan.tiles.length), 0, t);
       persist('Geri alındı');
     }, 7000);
@@ -497,15 +498,15 @@
     if (id && i < 0) return;
     var base = i >= 0 ? dateNear(i) : null;
     pending = { id: id, side: side };
-    $('ask-title').textContent = !id ? 'Sona yeni kutu' : side === 'l' ? 'Soluna yeni kutu' : 'Sağına yeni kutu';
+    I18N.text($('ask-title'), !id ? 'Sona yeni kutu' : side === 'l' ? 'Soluna yeni kutu' : 'Sağına yeni kutu');
     $('ask-date').value = iso(base ? addDays(base, side === 'l' ? -1 : 1) : new Date());
     var opts = $('ask-opts');
     opts.textContent = '';
     if (base) {
-      opts.appendChild(dateBtn('Aynı gün', base));
-      opts.appendChild(dateBtn(side === 'l' ? 'Bir gün önce' : 'Bir gün sonra', addDays(base, side === 'l' ? -1 : 1)));
+      opts.appendChild(dateBtn(tr('Aynı gün'), base));
+      opts.appendChild(dateBtn(side === 'l' ? tr('Bir gün önce') : tr('Bir gün sonra'), addDays(base, side === 'l' ? -1 : 1)));
     } else {
-      var b = el('button', 'abtn', 'Tarihsiz ekle');
+      var b = el('button', 'abtn', tr('Tarihsiz ekle'));
       b.type = 'button'; b.dataset.date = '';
       opts.appendChild(b);
     }
@@ -555,7 +556,7 @@
   function fill(id, items) {
     var t = findTile(id);
     if (!t || !items.length) return false;
-    if (t.kind !== 'empty' && (t.images || []).length) { toast('Bu kutu dolu.'); return false; }
+    if (t.kind !== 'empty' && (t.images || []).length) { toast(tr('Bu kutu dolu.')); return false; }
     var before = JSON.stringify(t);
     t.images = items.map(function (it) { return { driveId: it.id, name: it.name, mime: it.mime }; });
     t.kind = items.length > 1 ? 'carousel' : isVideo(t.images[0]) ? 'reel' : 'post';
@@ -565,14 +566,14 @@
     render();
     var node = document.querySelector('.tile[data-id="' + id + '"]');
     if (node) node.classList.add('fresh');
-    toast(t.kind === 'carousel' ? 'Carousel eklendi (' + items.length + ').' : t.kind === 'reel' ? 'Reel eklendi.' : 'Gönderi eklendi.');
+    toast(t.kind === 'carousel' ? tr('Carousel eklendi ({n}).', { n: items.length }) : t.kind === 'reel' ? tr('Reel eklendi.') : tr('Gönderi eklendi.'));
     return true;
   }
 
   function tileLabel(id) {
     var t = findTile(id);
     var d = t && parse(t.date);
-    return d ? chip(d) : 'Tarihsiz kutu';
+    return d ? chip(d) : tr('Tarihsiz kutu');
   }
 
   // After sign-in: load thumbnails for everything already placed from Drive, then redraw.
@@ -644,11 +645,11 @@
       });
       if (linked && persist('Doc 2 görselleri Drive\'a bağlandı')) {
         render();
-        toast('Doc 2 görselleri Drive\'a bağlandı: ' + linked + (missed ? ' · bulunamayan: ' + missed : ''), null, null, 5000);
+        toast(tr("Doc 2 görselleri Drive'a bağlandı: {n}", { n: linked }) + (missed ? tr(' · bulunamayan: {n}', { n: missed }) : ''), null, null, 5000);
       } else if (missed) {
-        toast('Doc 2 görsellerinden ' + missed + ' tanesi Drive\'da bulunamadı.', null, null, 5000);
+        toast(tr("Doc 2 görsellerinden {n} tanesi Drive'da bulunamadı.", { n: missed }), null, null, 5000);
       }
-    }, function (e) { toast('Doc 2 görselleri bağlanamadı: ' + e.message, null, null, 6000); });
+    }, function (e) { toast(tr('Doc 2 görselleri bağlanamadı: {e}', { e: e.message }), null, null, 6000); });
   }
 
   // =====================================================================
@@ -664,8 +665,8 @@
     document.body.classList.toggle('mode-view', touch && m !== 'edit');
     var b = $('mode');
     b.setAttribute('aria-pressed', m === 'edit' ? 'true' : 'false');
-    b.setAttribute('aria-label', m === 'edit' ? 'Düzenlemeyi bitir' : 'Düzenle');
-    if (!quiet) toast(m === 'edit' ? 'Düzenleme açık.' : 'Görüntüleme: değişiklik yapılamaz.');
+    b.setAttribute('aria-label', m === 'edit' ? tr('Düzenlemeyi bitir') : tr('Düzenle'));
+    if (!quiet) toast(m === 'edit' ? tr('Düzenleme açık.') : tr('Görüntüleme: değişiklik yapılamaz.'));
   }
   $('mode').addEventListener('click', function () { setMode(mode === 'edit' ? 'view' : 'edit'); });
 
@@ -703,7 +704,7 @@
     if (mode === 'view') {
       if (!empty) open(node);
       else if (libraryOpen()) Library.open(node.dataset.id);      // the open Kütüphane is waiting for a target
-      else toast('Doldurmak için Düzenle\'ye geç.');
+      else toast(tr("Doldurmak için Düzenle'ye geç."));
       return;
     }
     // Düzenle (4.6): the first tap shows this tile's "+" and "×" (like hover on a computer);
@@ -797,7 +798,7 @@
     render();
     flash(id);
     var d = parse(t.date);
-    toast('Kutu taşındı' + (d && t.date !== oldDate ? ': ' + chip(d) : '') + '.', 'Geri al', function () {
+    toast(d && t.date !== oldDate ? tr('Kutu taşındı: {d}.', { d: chip(d) }) : tr('Kutu taşındı.'), tr('Geri al'), function () {
       var i = indexOf(id);
       if (i < 0) return;
       plan.tiles.splice(i, 1);
@@ -826,7 +827,7 @@
     pick = id; spot = null;
     document.body.classList.add('picking');
     showPick();
-    $('mv-text').textContent = 'Nereye? Bir kutuya dokun.';
+    I18N.text($('mv-text'), 'Nereye? Bir kutuya dokun.');
     $('mv-go').hidden = true;
     $('movebar').hidden = false;
   }
@@ -848,7 +849,8 @@
   window.endPick = endPick;
   function placeTap(node, x) {
     spot = lineAt(node, x);
-    $('mv-text').textContent = spot.id ? (spot.side === 'l' ? 'Soluna: ' : 'Sağına: ') + tileLabel(spot.id) : 'En sona';
+    if (spot.id) I18N.text($('mv-text'), spot.side === 'l' ? 'Soluna: {d}' : 'Sağına: {d}', { d: tileLabel(spot.id) });
+    else I18N.text($('mv-text'), 'En sona');
     $('mv-go').hidden = false;
   }
   $('mv-go').addEventListener('click', function () {
@@ -903,8 +905,8 @@
     var t = findTile(id);
     if (!t) return;
     dateFor = id;
-    $('md-title').textContent = 'Hangi güne taşınsın?';
-    $('md-from').textContent = (t.title ? t.title + ' · ' : '') + (parse(t.date) ? 'şimdi ' + chip(parse(t.date)) : 'tarihsiz');
+    I18N.text($('md-title'), 'Hangi güne taşınsın?');
+    $('md-from').textContent = (t.title ? t.title + ' · ' : '') + (parse(t.date) ? tr('şimdi {d}', { d: chip(parse(t.date)) }) : tr('tarihsiz'));
     $('md-date').value = t.date || iso(new Date());
     liftGuard = true;
     $('movedate').hidden = false;
@@ -938,7 +940,7 @@
     if (!persist('Kutu taşındı')) { plan.tiles.splice(at, 1); plan.tiles.splice(from, 0, t); t.date = oldDate; return false; }
     render();
     flash(id);
-    toast('Kutu taşındı: ' + chip(parse(date)) + '.', 'Geri al', function () {
+    toast(tr('Kutu taşındı: {d}.', { d: chip(parse(date)) }), tr('Geri al'), function () {
       var i = indexOf(id);
       if (i < 0) return;
       plan.tiles.splice(i, 1);
@@ -987,11 +989,11 @@
     if (ours(e)) return;
     e.preventDefault();
     if (moving(e)) return;            // a tile dropped outside the grid: it stays where it was
-    toast('Önce dosyayı Drive klasörüne ekle, sonra Kütüphane\'den seç.');
+    toast(tr("Önce dosyayı Drive klasörüne ekle, sonra Kütüphane'den seç."));
   });
 
   // ---- for the Yedek panel (js/backup.js) ----
-  function kindName(t) { return isBlank(t) ? 'Boş' : t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi'; }
+  function kindName(t) { return tr(isBlank(t) ? 'Boş' : t.kind === 'carousel' ? 'Carousel' : t.kind === 'reel' ? 'Reel' : 'Gönderi'); }
   function thumb(t) {
     var b = el('span', 'bthumb');
     var im = (t.images || [])[0];
@@ -1033,6 +1035,14 @@
   } else if (window.Backup) {
     Backup.snapshot(plan, 'Açılış');
   }
+
+  // Feature 6: another language → new month/day names and labels, redraw the grid
+  document.addEventListener('i18n:change', function () {
+    names();
+    render();
+    setMode(mode, true);
+    if (pick && spot) placeTap(document.querySelector(spot.id ? '.tile[data-id="' + spot.id + '"]' : '.addend'), 0);
+  });
 
   setMode('view', true);
   render();
