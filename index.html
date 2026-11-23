@@ -8,73 +8,74 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Crect width='30' height='30' rx='6' fill='%23111'/%3E%3Cg fill='%23fff'%3E%3Crect x='5' y='5' width='6' height='6'/%3E%3Crect x='12' y='5' width='6' height='6'/%3E%3Crect x='19' y='5' width='6' height='6'/%3E%3Crect x='5' y='12' width='6' height='6'/%3E%3Crect x='12' y='12' width='6' height='6'/%3E%3Crect x='19' y='12' width='6' height='6' fill='%23E8435A'/%3E%3Crect x='5' y='19' width='6' height='6'/%3E%3Crect x='12' y='19' width='6' height='6'/%3E%3C/g%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/style.css?v=5.8">
+  <link rel="stylesheet" href="css/style.css?v=6.1">
 </head>
 <body>
   <div class="wrap">
     <header class="top">
       <h1 class="vh">Visual Feed Planner</h1>
-      <section class="drive" aria-label="Google Drive kütüphanesi">
+      <section class="drive" aria-label="Google Drive kütüphanesi" data-ta="Google Drive kütüphanesi">
         <div class="drow">
-          <button class="dbtn" id="dconnect" type="button">Drive'a bağlan</button>
-          <button class="dbtn ghost" id="bk-open" type="button">Yedek</button>
+          <button class="dbtn" id="dconnect" type="button" data-t="Drive'a bağlan">Drive'a bağlan</button>
+          <button class="dbtn ghost" id="bk-open" type="button" data-t="Yedek">Yedek</button>
+          <button class="dbtn ghost lang" id="lang" type="button" lang="en" aria-label="Switch to English">EN</button>
           <span class="dstatus" id="dstatus" role="status"></span>
           <button class="sync" id="sync" type="button" hidden disabled aria-live="polite"></button>
         </div>
       </section>
     </header>
-    <nav class="tabs" id="tabs" aria-label="Haftalar"></nav>
+    <nav class="tabs" id="tabs" aria-label="Haftalar" data-ta="Haftalar"></nav>
     <div class="wbar" id="wbar" hidden>
       <div class="wtop"><b id="wt"></b><span id="wr"></span></div>
       <div class="ths" id="wc"></div>
     </div>
     <div class="feed" id="feed"></div>
-    <p class="empty-plan" id="empty-plan" hidden>Henüz kutu yok.</p>
+    <p class="empty-plan" id="empty-plan" hidden data-t="Henüz kutu yok.">Henüz kutu yok.</p>
   </div>
 
-  <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Büyük görünüm">
-    <div class="vbar"><div class="vtitle" id="vtitle"></div><button class="vclose" id="vclose" type="button">Kapat ✕</button></div>
+  <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Büyük görünüm" data-ta="Büyük görünüm">
+    <div class="vbar"><div class="vtitle" id="vtitle"></div><button class="vclose" id="vclose" type="button" data-t="Kapat ✕">Kapat ✕</button></div>
     <div class="vbody" id="vbody"></div>
   </div>
 
-  <aside class="lib" id="lib" hidden aria-label="Kütüphane">
+  <aside class="lib" id="lib" hidden aria-label="Kütüphane" data-ta="Kütüphane">
     <div class="lhead">
-      <div><b>Kütüphane</b><span id="ltarget"></span></div>
-      <button class="lclose" id="lclose" type="button">Kapat ✕</button>
+      <div><b data-t="Kütüphane">Kütüphane</b><span id="ltarget"></span></div>
+      <button class="lclose" id="lclose" type="button" data-t="Kapat ✕">Kapat ✕</button>
     </div>
     <div class="lchips" id="lfolders"></div>
-    <div class="lsize" id="lsize" role="group" aria-label="Boyut">
-      <button type="button" class="on" data-size="all">Tümü</button>
-      <button type="button" data-size="4-5">4:5 gönderi</button>
-      <button type="button" data-size="9-16">9:16 reel</button>
+    <div class="lsize" id="lsize" role="group" aria-label="Boyut" data-ta="Boyut">
+      <button type="button" class="on" data-size="all" data-t="Tümü">Tümü</button>
+      <button type="button" data-size="4-5" data-t="4:5 gönderi">4:5 gönderi</button>
+      <button type="button" data-size="9-16" data-t="9:16 reel">9:16 reel</button>
     </div>
     <div class="lgrid" id="lgrid"></div>
     <div class="lfoot">
-      <span id="lcount">Dosya seç</span>
-      <button class="lclear" id="lclear" type="button" hidden>Temizle</button>
-      <button class="dbtn" id="lplace" type="button" disabled>Yerleştir</button>
+      <span id="lcount" data-t="Dosya seç">Dosya seç</span>
+      <button class="lclear" id="lclear" type="button" hidden data-t="Temizle">Temizle</button>
+      <button class="dbtn" id="lplace" type="button" disabled data-t="Yerleştir">Yerleştir</button>
     </div>
   </aside>
 
   <div class="ask" id="ask" hidden role="dialog" aria-modal="true" aria-labelledby="ask-title">
     <div class="abox">
-      <b id="ask-title">Yeni kutu</b>
-      <p>Hangi gün?</p>
+      <b id="ask-title" data-t="Yeni kutu">Yeni kutu</b>
+      <p data-t="Hangi gün?">Hangi gün?</p>
       <div class="aopts" id="ask-opts"></div>
       <div class="aother">
-        <label for="ask-date">Başka gün</label>
+        <label for="ask-date" data-t="Başka gün">Başka gün</label>
         <input type="date" id="ask-date">
-        <button class="dbtn" id="ask-go" type="button">Ekle</button>
+        <button class="dbtn" id="ask-go" type="button" data-t="Ekle">Ekle</button>
       </div>
-      <button class="acancel" id="ask-cancel" type="button">Vazgeç</button>
+      <button class="acancel" id="ask-cancel" type="button" data-t="Vazgeç">Vazgeç</button>
     </div>
   </div>
 
   <div class="bk" id="bk" hidden role="dialog" aria-modal="true" aria-labelledby="bk-title">
     <div class="bbox">
       <div class="lhead">
-        <div><b id="bk-title">Yedek</b><span>Planın kopyaları. Hiçbir şey kaybolmaz.</span></div>
-        <button class="lclose" id="bk-close" type="button">Kapat ✕</button>
+        <div><b id="bk-title" data-t="Yedek">Yedek</b><span data-t="Planın kopyaları. Hiçbir şey kaybolmaz.">Planın kopyaları. Hiçbir şey kaybolmaz.</span></div>
+        <button class="lclose" id="bk-close" type="button" data-t="Kapat ✕">Kapat ✕</button>
       </div>
       <section class="bsec" aria-labelledby="bk-d">
         <h2 id="bk-d">Drive</h2>
@@ -82,27 +83,27 @@
       </section>
       <section class="bsec" aria-labelledby="bk-x">
         <h2 id="bk-x">Excel</h2>
-        <p class="bnote">Planı Excel dosyası olarak indir; başka bir cihazda ya da temizlenen tarayıcıda geri yükle. Yüklerken dosyadaki gizli tam kopya kullanılır.</p>
+        <p class="bnote" data-t="Planı Excel dosyası olarak indir; başka bir cihazda ya da temizlenen tarayıcıda geri yükle. Yüklerken dosyadaki gizli tam kopya kullanılır.">Planı Excel dosyası olarak indir; başka bir cihazda ya da temizlenen tarayıcıda geri yükle. Yüklerken dosyadaki gizli tam kopya kullanılır.</p>
         <div class="bacts">
-          <button class="dbtn" id="bk-export" type="button">Excel'e aktar</button>
-          <button class="dbtn ghost" id="bk-import" type="button">Excel'den yükle</button>
+          <button class="dbtn" id="bk-export" type="button" data-t="Excel'e aktar">Excel'e aktar</button>
+          <button class="dbtn ghost" id="bk-import" type="button" data-t="Excel'den yükle">Excel'den yükle</button>
           <input type="file" id="bk-file" accept=".xlsx" hidden>
         </div>
         <div class="bconfirm" id="bk-confirm" hidden>
           <p id="bk-ctext"></p>
           <div class="bacts">
-            <button class="dbtn" id="bk-yes" type="button">Yükle</button>
-            <button class="dbtn ghost" id="bk-no" type="button">Vazgeç</button>
+            <button class="dbtn" id="bk-yes" type="button" data-t="Yükle">Yükle</button>
+            <button class="dbtn ghost" id="bk-no" type="button" data-t="Vazgeç">Vazgeç</button>
           </div>
         </div>
       </section>
       <section class="bsec" aria-labelledby="bk-a">
-        <h2 id="bk-a">Arşiv <span id="bk-acount"></span></h2>
+        <h2 id="bk-a"><span data-t="Arşiv">Arşiv</span> <span id="bk-acount"></span></h2>
         <div class="blist" id="bk-archive"></div>
       </section>
       <section class="bsec" aria-labelledby="bk-h">
-        <h2 id="bk-h">Geçmiş</h2>
-        <p class="bnote">Her değişiklik kaydedilir: son 30 kayıt ve 30 gün boyunca her günün sonuncusu. Bu tarayıcıda saklanır.</p>
+        <h2 id="bk-h" data-t="Geçmiş">Geçmiş</h2>
+        <p class="bnote" data-t="Her değişiklik kaydedilir: son 30 kayıt ve 30 gün boyunca her günün sonuncusu. Bu tarayıcıda saklanır.">Her değişiklik kaydedilir: son 30 kayıt ve 30 gün boyunca her günün sonuncusu. Bu tarayıcıda saklanır.</p>
         <div class="blist" id="bk-history"></div>
       </section>
     </div>
@@ -117,11 +118,11 @@
   <!-- 5.4 the plan changed in two places -->
   <div class="ask" id="conflict" hidden role="dialog" aria-modal="true" aria-labelledby="cf-title">
     <div class="abox">
-      <b id="cf-title">Plan iki yerde değişti</b>
-      <p>Hangisi kalsın? Diğeri Geçmiş'e kaydedilir.</p>
+      <b id="cf-title" data-t="Plan iki yerde değişti">Plan iki yerde değişti</b>
+      <p data-t="Hangisi kalsın? Diğeri Geçmiş'e kaydedilir.">Hangisi kalsın? Diğeri Geçmiş'e kaydedilir.</p>
       <div class="aopts">
-        <button class="abtn" id="cf-drive" type="button"><b>Drive'daki</b><span></span></button>
-        <button class="abtn" id="cf-local" type="button"><b>Bu cihazdaki</b><span></span></button>
+        <button class="abtn" id="cf-drive" type="button"><b data-t="Drive'daki">Drive'daki</b><span></span></button>
+        <button class="abtn" id="cf-local" type="button"><b data-t="Bu cihazdaki">Bu cihazdaki</b><span></span></button>
       </div>
     </div>
   </div>
@@ -129,31 +130,32 @@
   <!-- 4.5 phone: long hold → move to a day -->
   <div class="ask" id="movedate" hidden role="dialog" aria-modal="true" aria-labelledby="md-title">
     <div class="abox">
-      <b id="md-title">Hangi güne taşınsın?</b>
+      <b id="md-title" data-t="Hangi güne taşınsın?">Hangi güne taşınsın?</b>
       <p id="md-from"></p>
-      <input type="date" id="md-date" class="mdate" aria-label="Gün">
-      <button class="dbtn" id="md-go" type="button">Taşı</button>
-      <button class="acancel" id="md-cancel" type="button">Vazgeç</button>
+      <input type="date" id="md-date" class="mdate" aria-label="Gün" data-ta="Gün">
+      <button class="dbtn" id="md-go" type="button" data-t="Taşı">Taşı</button>
+      <button class="acancel" id="md-cancel" type="button" data-t="Vazgeç">Vazgeç</button>
     </div>
   </div>
 
   <!-- 4.4 phone: moving a picked tile -->
-  <div class="movebar" id="movebar" hidden role="region" aria-label="Kutuyu taşı">
+  <div class="movebar" id="movebar" hidden role="region" aria-label="Kutuyu taşı" data-ta="Kutuyu taşı">
     <span id="mv-text" role="status"></span>
-    <button class="dbtn ghost" id="mv-cancel" type="button">Vazgeç</button>
-    <button class="dbtn" id="mv-go" type="button" hidden>Buraya taşı</button>
+    <button class="dbtn ghost" id="mv-cancel" type="button" data-t="Vazgeç">Vazgeç</button>
+    <button class="dbtn" id="mv-go" type="button" hidden data-t="Buraya taşı">Buraya taşı</button>
   </div>
 
   <div class="toast" id="toast" hidden role="status"></div>
 
   <!-- Local Doc 2 skeleton (gitignored). Missing on the published site until F4 brings the plan from Drive. -->
-  <script src="data/seed.js?v=5.8" onerror="window.SEED = null"></script>
-  <script src="js/storage.js?v=5.8"></script>
-  <script src="js/config.js?v=5.8"></script>
-  <script src="js/drive.js?v=5.8"></script>
-  <script src="js/backup.js?v=5.8"></script>
-  <script src="js/app.js?v=5.8"></script>
-  <script src="js/library.js?v=5.8"></script>
-  <script src="js/sync.js?v=5.8"></script>
+  <script src="data/seed.js?v=6.1" onerror="window.SEED = null"></script>
+  <script src="js/i18n.js?v=6.1"></script>
+  <script src="js/storage.js?v=6.1"></script>
+  <script src="js/config.js?v=6.1"></script>
+  <script src="js/drive.js?v=6.1"></script>
+  <script src="js/backup.js?v=6.1"></script>
+  <script src="js/app.js?v=6.1"></script>
+  <script src="js/library.js?v=6.1"></script>
+  <script src="js/sync.js?v=6.1"></script>
 </body>
 </html>

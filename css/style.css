@@ -285,3 +285,4 @@ body.picking .wrap { padding-bottom: 90px; }
 .blink { font-size: 13px; font-weight: 700; color: var(--fg); }
 #bk-drive { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 #bk-save { margin: 6px 0 2px; }
+.lang { min-width: 48px; padding-inline: 12px; }
