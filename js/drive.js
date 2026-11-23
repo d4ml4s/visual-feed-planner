@@ -106,7 +106,8 @@
 
   // ---------------- Feature 5: the plan file (only files this app created are visible to it) ----------------
   var PLAN_FOLDER = 'Visual Feed Planner', PLAN_FILE = 'plan.json';
-  var META = 'id, modifiedTime, version, appProperties';
+  // md5Checksum changes only when the content changes (version also moves on invisible server-side changes)
+  var META = 'id, modifiedTime, version, md5Checksum, headRevisionId, appProperties';
 
   function send(method, url, body, type) {
     return fetch(url, { method: method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': type || 'application/json' }, body: body })

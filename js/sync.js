@@ -2,7 +2,10 @@
  *   "Visual Feed Planner" / plan.json   (created by this app; the app can see and change only its own files)
  * The browser copy (localStorage) stays the working copy; Drive is the shared copy for every device.
  * What this browser knows about the Drive copy is kept in localStorage "vfp.sync":
- *   { fileId, version (Drive's version number at the last sync), dirty (changes not in Drive yet) }
+ *   { fileId, sig (Drive's content fingerprint at the last sync), base (fingerprint of the plan text last
+ *     synced, made here), dirty (changes not in Drive yet), savedAt }
+ * 5.6: Drive's "version" number also goes up on invisible server-side changes, so it is NOT used to decide
+ * whether another device saved: the content fingerprint (md5Checksum) and the last synced text are.
  */
 (function () {
   'use strict';
@@ -17,6 +20,11 @@
   var device = matchMedia('(hover: none)').matches ? 'telefon' : 'bilgisayar';
   function props() { return { device: device, savedAt: new Date().toISOString() }; }
   function text() { return JSON.stringify(Planner.plan()); }
+  // Drive's fingerprint of the file content; older fallbacks only if Google gives none.
+  function sig(meta) { return meta.md5Checksum || meta.headRevisionId || ('v' + meta.version); }
+  // Our own fingerprint of a plan text (to recognise "Drive still holds exactly what we last synced").
+  function hash(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + '.' + s.length; }
+  if (st.version && !st.sig && !st.base) st.synced = true;      // synced before 5.6 (old version number only)
 
   function hm(isoTime) {
     var d = isoTime ? new Date(isoTime) : new Date();
@@ -51,8 +59,9 @@
       }
       if (!Planner.plan().tiles.length) { show('Bu hesapta plan yok', 'bad'); return; }
       show('Kaydediliyor…');
-      return Drive.createPlan(text(), props()).then(function (meta) {
-        st = { fileId: meta.id, version: meta.version, dirty: false };
+      var body0 = text();
+      return Drive.createPlan(body0, props()).then(function (meta) {
+        st = { fileId: meta.id, sig: sig(meta), base: hash(body0), dirty: false };
         keep();
         saved(meta);
         Planner.toast('Plan Drive\'a kaydedildi: Visual Feed Planner / plan.json', null, null, 5000);
@@ -63,35 +72,46 @@
 
   // ---- 5.2 load: Drive has a newer plan (saved on another device) → take it ----
   var applying = false;          // true while a plan from Drive is put in place (that is not a new change)
-  function compare(meta) {
-    if (st.version && String(meta.version) === String(st.version)) {
-      if (st.dirty && window.Sync.push) return Sync.push();
+  // upload: what to do when Drive still holds what we last synced but we have unsaved changes
+  // (inside a save that is the upload itself; elsewhere a normal save)
+  function compare(meta, upload) {
+    var send = upload || function () { return window.Sync.push(); };
+    if (st.sig && sig(meta) === st.sig) {
+      if (st.dirty) return send();
       saved(meta);
       return Promise.resolve();
     }
     return Drive.readPlan(meta.id).then(function (body) {
       var p = JSON.parse(body);
       if (!Store.valid(p)) throw new Error("Drive'daki plan okunamadı.");
-      if (body === text()) { st.version = meta.version; st.dirty = false; keep(); saved(meta); return; }
-      var fresh = !st.version && !Planner.plan().tiles.length;     // this browser has nothing yet
-      if (!st.dirty && (st.version || fresh)) return take(p, meta);
-      return conflict(p, meta);
+      if (body === text()) { st.sig = sig(meta); st.base = hash(body); st.dirty = false; delete st.synced; keep(); saved(meta); return; }
+      // Drive's content is exactly what we last synced: nobody else saved (only the fingerprint moved)
+      if (st.base && hash(body) === st.base) {
+        st.sig = sig(meta); keep();
+        if (st.dirty) return send();
+        saved(meta);
+        return;
+      }
+      var synced = st.sig || st.base || st.synced;
+      var fresh = !synced && !Planner.plan().tiles.length;         // this browser has nothing yet
+      if (!st.dirty && (synced || fresh)) return take(p, meta, body);
+      return conflict(p, meta, body);
     });
   }
   function from(meta) {
     var dev = meta.appProperties && meta.appProperties.device;
     return (dev ? dev + ', ' : '') + hm(meta.modifiedTime);
   }
-  function take(p, meta) {
+  function take(p, meta, body) {
     applying = true;
     try { Planner.replace(p, "Drive'dan alındı (" + from(meta) + ')'); } finally { applying = false; }
-    st.version = meta.version; st.dirty = false; st.savedAt = meta.modifiedTime;
+    st.sig = sig(meta); st.base = hash(body); st.dirty = false; st.savedAt = meta.modifiedTime; delete st.synced;
     keep();
     show("Drive'dan alındı " + hm(meta.modifiedTime));
   }
   // ---- 5.4 both sides changed: ask which plan stays; the other one is kept in Geçmiş ----
   function count(pl) { return pl.tiles.filter(function (t) { return !t.archived; }).length + ' kutu'; }
-  function conflict(p, meta) {
+  function conflict(p, meta, body) {
     var box = $('conflict');
     if (!box.hidden) return Promise.resolve();          // already asking
     show('Plan iki yerde değişti', 'bad');
@@ -103,14 +123,14 @@
       $('cf-drive').onclick = function () {
         box.hidden = true;
         Backup.snapshot(Planner.plan(), 'Bu cihazdaki (çakışmada bırakıldı)', true);
-        take(p, meta);
+        take(p, meta, body);
         done();
       };
       $('cf-local').onclick = function () {
         box.hidden = true;
         Backup.snapshot(p, "Drive'daki (çakışmada bırakıldı, " + from(meta) + ')');
         Backup.snapshot(Planner.plan(), 'Bu cihazdaki seçildi', true);
-        st.version = meta.version;                    // we have seen Drive's copy: now ours replaces it
+        st.sig = sig(meta); st.base = hash(body);     // we have seen Drive's copy: now ours replaces it
         st.dirty = true;
         keep();
         show('Kaydediliyor…');
@@ -148,16 +168,19 @@
     if (!Drive.canWrite()) return Promise.resolve();
     if (!st.fileId) return start();
     var body = text(), wrote = false;
-    busy = Drive.planMeta(st.fileId).then(function (meta) {
-      // someone else saved since our last sync → don't overwrite (5.4 decides)
-      if (st.version && String(meta.version) !== String(st.version)) return compare(meta);
+    function upload() {
       return Drive.updatePlan(st.fileId, body, props()).then(function (m) {
-        st.version = m.version;
+        st.sig = sig(m); st.base = hash(body); delete st.synced;
         if (text() === body) st.dirty = false;  // changes made while saving go in the next round
         keep();
         saved(m);
         wrote = true;
       });
+    }
+    busy = Drive.planMeta(st.fileId).then(function (meta) {
+      // the content in Drive changed since our last sync → maybe another device saved: compare decides
+      if (st.sig && sig(meta) !== st.sig) return compare(meta, upload);
+      return upload();
     }).catch(problem)
       .then(function () {
         busy = null;
@@ -173,7 +196,7 @@
   function problem(e) {
     if ((e && e.status === 401) || !Drive.isSignedIn()) return needAuth();
     if (e && e.status === 404 && st.fileId) {       // the plan file was deleted in Drive: make it again
-      st.fileId = null; st.version = null; keep();
+      st.fileId = null; st.sig = null; st.base = null; keep();
       return start();
     }
     if (!navigator.onLine || e instanceof TypeError) { show('Bağlantı yok, sonra kaydedilecek', 'warn'); return; }
