@@ -115,17 +115,17 @@
     var i = el('img');
     i.alt = '';
     i.decoding = 'async';
-    Drive.paint(i, im.driveId, im.mime, size, function () { if (i.parentNode) i.replaceWith(el('span', 'miss', title || 'Görsel yok')); });
+    Drive.paint(i, im.driveId, im.mime, size, function () { if (i.parentNode) i.replaceWith(el('span', 'miss', title || tr('Görsel yok'))); });
     return i;
   }
 
   // A missing file (no local copy, or Drive not connected yet) becomes a soft grey box with the post's title.
   function img(src, alt, title) {
-    if (!src) return el('span', 'miss', title || 'Görsel yok');
+    if (!src) return el('span', 'miss', title || tr('Görsel yok'));
     var i = el('img');
     i.loading = 'lazy';
     i.alt = alt || '';
-    i.onerror = function () { i.replaceWith(el('span', 'miss', title || 'Görsel yok')); };
+    i.onerror = function () { i.replaceWith(el('span', 'miss', title || tr('Görsel yok'))); };
     i.src = src;
     return i;
   }

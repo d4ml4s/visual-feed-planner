@@ -12,6 +12,7 @@
   if (!window.Drive || !window.Planner) return;
 
   var $ = function (id) { return document.getElementById(id); };
+  var tr = I18N.t;                       // Feature 6
   var KEY = 'vfp.sync';
   var st = {};
   try { st = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { st = {}; }
@@ -56,8 +57,10 @@
 
   // ---- the small note next to the buttons ----
   var chip = $('sync'), chipAction = null;
-  function show(msg, kind, action) {
-    chip.textContent = msg;
+  var last = null;
+  function show(msg, kind, action, vars) {
+    last = [msg, kind, action, vars];
+    chip.textContent = msg ? tr(msg, vars) : '';
     chip.hidden = !msg;
     chip.className = 'sync' + (kind ? ' ' + kind : '') + (action ? ' act' : '');
     chip.disabled = !action;
@@ -67,7 +70,7 @@
   function saved(meta) {
     st.savedAt = meta && meta.modifiedTime || new Date().toISOString();
     keep();
-    show('Drive\'a kaydedildi ' + hm(st.savedAt));
+    show("Drive'a kaydedildi {t}", null, null, { t: hm(st.savedAt) });
   }
 
   // ---- 5.1 on sign-in: find the plan file, or create it with this browser's plan ----
@@ -88,7 +91,7 @@
         synced(meta, body0);
         keep();
         saved(meta);
-        Planner.toast('Plan Drive\'a kaydedildi: Visual Feed Planner / plan.json', null, null, 5000);
+        Planner.toast(tr("Plan Drive'a kaydedildi: Visual Feed Planner / plan.json"), null, null, 5000);
       });
     }).catch(problem);
   }
@@ -107,7 +110,7 @@
     }
     return Drive.readPlan(meta.id).then(function (body) {
       var p = JSON.parse(body);
-      if (!Store.valid(p)) throw new Error("Drive'daki plan okunamadı.");
+      if (!Store.valid(p)) throw new Error(tr("Drive'daki plan okunamadı."));
       if (body === text()) { synced(meta, body); st.dirty = false; keep(); saved(meta); return; }
       // Drive holds what we last synced, or an older save of ours it has not caught up on:
       // nobody else saved. Never take that older copy; send ours if we have changes.
@@ -132,16 +135,16 @@
     try { Planner.replace(p, "Drive'dan alındı (" + from(meta) + ')'); } finally { applying = false; }
     synced(meta, body); st.dirty = false; st.savedAt = meta.modifiedTime;
     keep();
-    show("Drive'dan alındı " + hm(meta.modifiedTime));
+    show("Drive'dan alındı {t}", null, null, { t: hm(meta.modifiedTime) });
   }
   // ---- 5.4 both sides changed: ask which plan stays; the other one is kept in Geçmiş ----
-  function count(pl) { return pl.tiles.filter(function (t) { return !t.archived; }).length + ' kutu'; }
+  function count(pl) { return tr('{n} kutu', { n: pl.tiles.filter(function (x) { return !x.archived; }).length }); }
   function conflict(p, meta, body) {
     var box = $('conflict');
     if (!box.hidden) return Promise.resolve();          // already asking
     show('Plan iki yerde değişti', 'bad');
-    $('cf-drive').querySelector('span').textContent = from(meta) + ' · ' + count(p);
-    $('cf-local').querySelector('span').textContent = device + ' · ' + count(Planner.plan());
+    $('cf-drive').querySelector('span').textContent = I18N.stored(from(meta)) + ' · ' + count(p);
+    $('cf-local').querySelector('span').textContent = tr(device) + ' · ' + count(Planner.plan());
     box.hidden = false;
     $('cf-drive').focus();
     return new Promise(function (done) {
@@ -225,7 +228,7 @@
       return start();
     }
     if (!navigator.onLine || e instanceof TypeError) { show('Bağlantı yok, sonra kaydedilecek', 'warn'); return; }
-    show('Drive: ' + e.message, 'bad', function () { push(); });
+    show('Drive: {e}', 'bad', function () { push(); }, { e: e.message });
   }
   function needAuth() { show("Drive'a tekrar bağlan", 'bad', reconnect); }
   function reconnect() {
@@ -256,7 +259,7 @@
             keep();
             saved(m);
             drawInfo();
-            Planner.toast("Bu cihazdaki plan Drive'a kaydedildi.", null, null, 4000);
+            Planner.toast(tr("Bu cihazdaki plan Drive'a kaydedildi."), null, null, 4000);
           });
         });
       });
@@ -268,28 +271,33 @@
     var box = $('bk-drive');
     if (!box) return;
     box.textContent = '';
-    var line = function (t) { var p = document.createElement('p'); p.className = 'bnote'; p.textContent = t; box.appendChild(p); return p; };
-    if (!st.fileId) { line("Drive'a bağlanınca plan 'Visual Feed Planner / plan.json' dosyasına kaydedilir."); return; }
-    var who = line('Hesap: …');                    // filled in when Google answers
+    var line = function (s) { var p = document.createElement('p'); p.className = 'bnote'; p.textContent = s; box.appendChild(p); return p; };
+    if (!st.fileId) { line(tr("Drive'a bağlanınca plan 'Visual Feed Planner / plan.json' dosyasına kaydedilir.")); return; }
+    var who = line(tr('Hesap: …'));                // filled in when Google answers
     Drive.account().then(function (u) {
-      who.textContent = u ? 'Hesap: ' + (u.displayName ? u.displayName + ' · ' : '') + u.emailAddress : '';
+      who.textContent = u ? tr('Hesap: {a}', { a: (u.displayName ? u.displayName + ' · ' : '') + u.emailAddress }) : '';
     });
-    line('Dosya: Visual Feed Planner / plan.json' + (st.savedAt ? ' · son kayıt ' + hm(st.savedAt) : '') + (st.dirty ? ' · kaydedilmemiş değişiklik var' : ''));
+    line(tr('Dosya: Visual Feed Planner / plan.json') + (st.savedAt ? tr(' · son kayıt {t}', { t: hm(st.savedAt) }) : '') + (st.dirty ? tr(' · kaydedilmemiş değişiklik var') : ''));
     var save = document.createElement('button');
     save.type = 'button';
     save.className = 'dbtn';
     save.id = 'bk-save';
-    save.textContent = "Drive'a kaydet";
+    save.textContent = tr("Drive'a kaydet");
     save.addEventListener('click', function () { save.disabled = true; forceSave().then(function () { save.disabled = false; }); });
     box.appendChild(save);
-    line("Bu cihazdaki planı şimdi Drive'a yazar. Drive'daki önceki hali Geçmiş'e kaydedilir.");
+    line(tr("Bu cihazdaki planı şimdi Drive'a yazar. Drive'daki önceki hali Geçmiş'e kaydedilir."));
     var a = document.createElement('a');
     a.href = 'https://drive.google.com/file/d/' + st.fileId + '/view';
     a.target = '_blank'; a.rel = 'noopener';
     a.className = 'blink';
-    a.textContent = "Drive'da aç";
+    a.textContent = tr("Drive'da aç");
     box.appendChild(a);
   }
+  // Feature 6: another language → redraw the note and the Drive section
+  document.addEventListener('i18n:change', function () {
+    if (last) show(last[0], last[1], last[2], last[3]);
+    if (!$('bk').hidden) drawInfo();
+  });
   var bkOpen = $('bk-open');
   if (bkOpen) bkOpen.addEventListener('click', drawInfo);
 

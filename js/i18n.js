@@ -235,16 +235,22 @@
   }
   /** App text: Turkish source → current language. */
   function t(s, v) { return fill(lang === 'en' && EN[s] != null ? EN[s] : s, v); }
+  // Words inside stored texts: device, today/yesterday, short month names.
+  function words(s) {
+    s = s.replace(/telefon/g, 'phone').replace(/bilgisayar/g, 'computer').replace(/Bugün/g, 'Today').replace(/Dün/g, 'Yesterday');
+    NAMES.tr.AYK.forEach(function (m, i) { if (m) s = s.replace(new RegExp('(\\d) ' + m + '(?![a-zçğıöşü])', 'g'), '$1 ' + NAMES.en.AYK[i]); });
+    return s;
+  }
   /** A text that was stored in Turkish (Geçmiş reasons, device names): shown in the current language. */
   function stored(s) {
     if (lang !== 'en' || !s) return s;
     if (EN[s] != null) return EN[s];
     for (var i = 0; i < STARTS.length; i++) {
       if (s.indexOf(STARTS[i][0]) === 0) {
-        return STARTS[i][1] + s.slice(STARTS[i][0].length).replace(/\btelefon\b/g, 'phone').replace(/\bbilgisayar\b/g, 'computer');
+        return STARTS[i][1] + words(s.slice(STARTS[i][0].length));
       }
     }
-    return s;
+    return words(s);
   }
   function names(k) { return NAMES[lang][k]; }
 
