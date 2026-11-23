@@ -7,12 +7,13 @@
   var panel = $('lib'), grid = $('lgrid'), chips = $('lfolders'), sizes = $('lsize');
   var place = $('lplace'), count = $('lcount'), target = $('ltarget');
   if (!btn || !window.Drive || !panel) return;
+  var tr = I18N.t;                       // Feature 6
 
   var state = { folders: null, folder: null, size: 'all', items: [], picked: [], target: null };
 
   Drive.loadGis().catch(function (e) { say(e.message, true); });
   // Signed in (also restored after a refresh): the header button becomes "Kütüphane".
-  document.addEventListener('drive:signedin', function () { btn.textContent = 'Kütüphane'; say(''); });
+  document.addEventListener('drive:signedin', function () { I18N.text(btn, 'Kütüphane'); say(''); });
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -39,7 +40,7 @@
   function show() {
     panel.hidden = false;
     document.body.classList.add('lib-open');
-    btn.textContent = 'Kütüphane';
+    I18N.text(btn, 'Kütüphane');
     updateFoot();
     if (!state.folders) loadFolders();
   }
@@ -56,9 +57,9 @@
     if (state.target) {
       var n = document.querySelector('.tile[data-id="' + state.target + '"]');
       if (n) n.classList.add('target');
-      target.textContent = 'Hedef: ' + Planner.tileLabel(state.target);
+      target.textContent = tr('Hedef: {d}', { d: Planner.tileLabel(state.target) });
     } else {
-      target.textContent = matchMedia('(hover: none)').matches ? 'Boş bir kutuya dokun' : 'Boş bir kutuya sürükle';
+      target.textContent = matchMedia('(hover: none)').matches ? tr('Boş bir kutuya dokun') : tr('Boş bir kutuya sürükle');
     }
     updateFoot();
   }
@@ -66,7 +67,7 @@
   // ---- folders + files ----
   function loadFolders() {
     grid.textContent = '';
-    grid.appendChild(el('p', 'lnote', 'Klasörler yükleniyor…'));
+    grid.appendChild(el('p', 'lnote', tr('Klasörler yükleniyor…')));
     Drive.folders().then(function (list) {
       state.folders = list;
       chips.textContent = '';
@@ -77,7 +78,7 @@
         chips.appendChild(c);
       });
       if (list.length) pickFolder(list[0].id);
-      else { grid.textContent = ''; grid.appendChild(el('p', 'lnote', 'Kütüphanede klasör yok.')); }
+      else { grid.textContent = ''; grid.appendChild(el('p', 'lnote', tr('Kütüphanede klasör yok.'))); }
     }, fail);
   }
 
@@ -86,7 +87,7 @@
     shown = {};
     Array.prototype.forEach.call(chips.children, function (c) { c.classList.toggle('on', c.dataset.id === id); });
     grid.textContent = '';
-    grid.appendChild(el('p', 'lnote', 'Dosyalar yükleniyor…'));
+    grid.appendChild(el('p', 'lnote', tr('Dosyalar yükleniyor…')));
     Drive.media(id).then(function (items) {
       if (state.folder !== id) return;
       state.items = items;
@@ -112,7 +113,7 @@
   function drawGrid() {
     grid.textContent = '';
     var list = state.items.filter(inSize);
-    if (!list.length) { grid.appendChild(el('p', 'lnote', 'Bu seçimde dosya yok.')); return; }
+    if (!list.length) { grid.appendChild(el('p', 'lnote', tr('Bu seçimde dosya yok.'))); return; }
     var groups = {}, order = [];
     list.forEach(function (it) {
       var g = it.path || '';
@@ -124,13 +125,13 @@
     order.forEach(function (g) {
       var items = groups[g];
       var head = el('div', 'lsec');
-      head.appendChild(el('span', null, g ? g.replace(/\//g, ' / ') : 'Klasörün kendisi'));
+      head.appendChild(el('span', null, g ? g.replace(/\//g, ' / ') : tr('Klasörün kendisi')));
       head.appendChild(el('span', null, String(items.length)));
       grid.appendChild(head);
       var n = Math.min(items.length, shown[g] || PAGE);
       items.slice(0, n).forEach(function (it) { grid.appendChild(thumb(it)); });
       if (n < items.length) {
-        var more = el('button', 'lmore', 'Daha fazla göster (' + (items.length - n) + ')');
+        var more = el('button', 'lmore', tr('Daha fazla göster ({n})', { n: items.length - n }));
         more.type = 'button';
         more.addEventListener('click', function () { shown[g] = n + PAGE * 2; drawGrid(); });
         grid.appendChild(more);
@@ -183,7 +184,10 @@
 
   function updateFoot() {
     var n = state.picked.length;
-    count.textContent = n ? n + ' seçili' + (n > 1 ? ' · carousel' : '') : 'Dosya seç';
+    if (n) {
+      I18N.text(count, '{n} seçili', { n: n });
+      if (n > 1) count.textContent += ' · carousel';
+    } else I18N.text(count, 'Dosya seç');
     $('lclear').hidden = !n;
     place.disabled = !(n && state.target);
   }
@@ -234,4 +238,10 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden && $('ask').hidden) close(); });
 
   window.Library = { open: open, clearSelection: clearSelection };
+  // Feature 6: another language → redraw the open panel's own texts
+  document.addEventListener('i18n:change', function () {
+    markTarget();
+    updateFoot();
+    if (!panel.hidden && state.items && state.items.length) drawGrid();
+  });
 })();

@@ -7,6 +7,7 @@
 (function () {
   'use strict';
   var C = window.CONFIG || {};
+  var tr = function (s, v) { return window.I18N ? I18N.t(s, v) : s; };      // Feature 6
   var READ = 'https://www.googleapis.com/auth/drive.readonly';
   var OWN = 'https://www.googleapis.com/auth/drive.file';
   var SCOPE = READ + ' ' + OWN;
@@ -40,7 +41,7 @@
       s.src = 'https://accounts.google.com/gsi/client';
       s.async = true;
       s.onload = function () { res(); };
-      s.onerror = function () { gisReady = null; rej(new Error('Google yüklenemedi. İnternet bağlantını kontrol et.')); };
+      s.onerror = function () { gisReady = null; rej(new Error(tr('Google yüklenemedi. İnternet bağlantını kontrol et.'))); };
       document.head.appendChild(s);
     });
     return gisReady;
@@ -50,7 +51,7 @@
   function signIn() {
     return new Promise(function (res, rej) {
       if (!(window.google && google.accounts && google.accounts.oauth2)) {
-        return rej(new Error('Google henüz yüklenmedi. Birkaç saniye sonra tekrar dene.'));
+        return rej(new Error(tr('Google henüz yüklenmedi. Birkaç saniye sonra tekrar dene.')));
       }
       if (!client) {
         client = google.accounts.oauth2.initTokenClient({ client_id: C.googleClientId, scope: SCOPE, callback: function () {} });
@@ -64,10 +65,10 @@
           rememberAccount();
           document.dispatchEvent(new CustomEvent('drive:signedin'));
           res();
-        } else rej(new Error('Giriş yapılamadı.'));
+        } else rej(new Error(tr('Giriş yapılamadı.')));
       };
       client.error_callback = function (e) {
-        rej(new Error(e && e.type === 'popup_closed' ? 'Giriş penceresi kapandı.' : 'Giriş yapılamadı.'));
+        rej(new Error(e && e.type === 'popup_closed' ? tr('Giriş penceresi kapandı.') : tr('Giriş yapılamadı.')));
       };
       // First time in this browser: Google's account chooser. Afterwards: the remembered account.
       var known = null;
@@ -89,9 +90,9 @@
 
   function fail(r) {
     var e;
-    if (r.status === 401) { forget(); e = new Error('Oturum süresi doldu. Tekrar bağlan.'); }
-    else if (r.status === 403 || r.status === 404) e = new Error('Bu dosyaya erişim yok. Kütüphanenin sahibi olan hesapla mı giriş yaptın?');
-    else e = new Error('Drive hatası (' + r.status + ').');
+    if (r.status === 401) { forget(); e = new Error(tr('Oturum süresi doldu. Tekrar bağlan.')); }
+    else if (r.status === 403 || r.status === 404) e = new Error(tr('Bu dosyaya erişim yok. Kütüphanenin sahibi olan hesapla mı giriş yaptın?'));
+    else e = new Error(tr('Drive hatası ({n}).', { n: r.status }));
     e.status = r.status;
     return e;
   }

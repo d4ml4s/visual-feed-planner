@@ -16,7 +16,7 @@ See `README.md` for structure and how to run it.
 - The library folder has one folder per product, each with `4-5` (posts/carousels) and `9-16` (reels) subfolders.
 - Hosted on GitHub Pages from its own **public** repo `visual-feed-planner` (https://d4ml4s.github.io/visual-feed-planner/). All paths are relative. Everything committed is public, code and history; the page has `noindex`. The user's data is protected by Google sign-in (only test users), not by the page.
 - This folder is its own Git repo. `TURING COLLEGE 2026/` is a plain container folder with no Git; every project in it has its own repo.
-- The UI is in Turkish. We talk in English.
+- The UI is in Turkish and English (Feature 6, `js/i18n.js`); Turkish is the default and the source language. We talk in English.
 
 ## Hard rules
 - **No brand names in anything published** (repo, app, page titles, demo data). The example brand is only local test data. The app has its own name. GitHub Pages serves every committed file (this one too), so brand-specific notes live in `CLAUDE.local.md`, which is gitignored.
@@ -26,6 +26,10 @@ See `README.md` for structure and how to run it.
 - **No secrets in the repo.** The Google client ID is public by design and locked to the site's address. Never add an API key or a client secret (`client_secret*.json` is gitignored).
 - **No personal email in Git.** Commits use the GitHub no-reply address (set in this repo's git config).
 - **The repo is public.** Before every push, check what is staged for brand names, media, personal data and secrets.
+
+## Languages (Feature 6)
+- Every text on screen is written in Turkish in the code and goes through the dictionary: `t('…')` (in app.js and backup.js `tr('…')`, because `t` is a tile there), with `{names}` for changing parts. Fixed page texts carry `data-t` / `data-ta`. A new text needs its English line in `js/i18n.js` (missing ones show in Turkish).
+- Texts stored in the plan or in Geçmiş stay Turkish and are shown translated (`I18N.stored`). The user's own plan content (titles, themes, labels, folder names) is never translated.
 
 ## Content rules (agreed, don't revisit)
 - The example brand's content rules are in `CLAUDE.local.md`.
@@ -84,6 +88,10 @@ How features are named: **Feature N: short name**, and its parts **N.1, N.2…**
   - **5.6 No false "Plan iki yerde değişti":** Google's `version` number also rises on invisible server-side changes, which made the app think another device had saved (choosing "Drive'daki" then lost the newest change). Now another device's save is detected by the content fingerprint (`md5Checksum`, `sig`) plus our own fingerprint of the last synced text (`base`): if Drive still holds exactly what we last synced, there is no question. Browsers synced before the fix take a newer Drive plan without asking when they have nothing unsaved.
   - **5.7 Own saves are always recognised:** the real app still asked on one computer ("Drive'daki: bilgisayar, 13:25"). Every save now carries an invisible tab tag (`appProperties.tab`, sessionStorage `vfp.tab`, kept across reloads); a Drive copy written by this tab is never treated as another device's (saved quietly, never taken back). The app also remembers the fingerprints of its last 20 saves (`vfp.sync.mine`), so a stale copy Google shows for a few seconds after a save is not taken either. The question only comes for a copy from another device or tab.
   - **5.8 "Drive'a kaydet":** a button in Yedek → Drive writes this device's plan to Drive at once, without a question (also closes an open "Plan iki yerde değişti" as "Bu cihazdaki"). Drive's previous copy goes to Geçmiş first ("Drive'daki (Drive'a kaydet'ten önce, …)"). If the sign-in ran out, the click signs in first. Auto-save stays as it is.
+- **Feature 6: Turkish / English** (branch `feature-6-language`)
+  - **6.1 Switch + page texts:** "EN" / "TR" button next to Yedek, switches at once, remembered per browser (`vfp.lang`), Turkish default; html `lang` follows.
+  - **6.2 Grid and editing:** labels, week bands/tabs (W2 in English), pinned bar, date chips (12 Nov · Thu), questions, move bar, calendar, messages.
+  - **6.3 Yedek, Kütüphane, Drive:** panel texts, Geçmiş reasons (stored Turkish, shown translated incl. Bugün/Dün/months/devices), Excel column headers, save note (redrawn on a switch), conflict question, Google sign-in messages.
 - Later (decide then): sharing the plan with other people (share plan.json from Drive); ask before creating a plan file in an account that has none (wrong account picked).
 
 ## Workflow
