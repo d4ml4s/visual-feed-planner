@@ -234,6 +234,35 @@
   }
   window.addEventListener('online', function () { if (st.dirty && Drive.canWrite()) push(); });
 
+  // ---- 5.8 "Drive'a kaydet": write THIS device's plan to Drive now, without a question.
+  //      Drive's previous copy goes to Geçmiş first, so nothing is lost. ----
+  function forceSave() {
+    if (!Drive.canWrite()) { reconnect(); return Promise.resolve(); }
+    var box = $('conflict');
+    if (box && !box.hidden) box.hidden = true;          // this answers an open question too: "Bu cihazdaki"
+    clearTimeout(timer);
+    show('Kaydediliyor…');
+    return (busy || Promise.resolve()).then(function () {
+      if (!st.fileId) { st.dirty = true; keep(); return start(); }
+      return Drive.planMeta(st.fileId).then(function (meta) {
+        return Drive.readPlan(meta.id).then(function (old) {
+          if (old !== text()) {
+            try { Backup.snapshot(JSON.parse(old), "Drive'daki (Drive'a kaydet'ten önce, " + from(meta) + ')', true); } catch (e) { /* unreadable: nothing to keep */ }
+          }
+          var body = text();
+          return Drive.updatePlan(st.fileId, body, props()).then(function (m) {
+            synced(m, body);
+            if (text() === body) st.dirty = false;
+            keep();
+            saved(m);
+            drawInfo();
+            Planner.toast("Bu cihazdaki plan Drive'a kaydedildi.", null, null, 4000);
+          });
+        });
+      });
+    }).catch(problem);
+  }
+
   // ---- Yedek panel: which account and file, last save ----
   function drawInfo() {
     var box = $('bk-drive');
@@ -246,6 +275,14 @@
       who.textContent = u ? 'Hesap: ' + (u.displayName ? u.displayName + ' · ' : '') + u.emailAddress : '';
     });
     line('Dosya: Visual Feed Planner / plan.json' + (st.savedAt ? ' · son kayıt ' + hm(st.savedAt) : '') + (st.dirty ? ' · kaydedilmemiş değişiklik var' : ''));
+    var save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'dbtn';
+    save.id = 'bk-save';
+    save.textContent = "Drive'a kaydet";
+    save.addEventListener('click', function () { save.disabled = true; forceSave().then(function () { save.disabled = false; }); });
+    box.appendChild(save);
+    line("Bu cihazdaki planı şimdi Drive'a yazar. Drive'daki önceki hali Geçmiş'e kaydedilir.");
     var a = document.createElement('a');
     a.href = 'https://drive.google.com/file/d/' + st.fileId + '/view';
     a.target = '_blank'; a.rel = 'noopener';
@@ -256,5 +293,5 @@
   var bkOpen = $('bk-open');
   if (bkOpen) bkOpen.addEventListener('click', drawInfo);
 
-  window.Sync = { state: function () { return JSON.parse(JSON.stringify(st)); }, check: check, changed: changed, push: push };
+  window.Sync = { state: function () { return JSON.parse(JSON.stringify(st)); }, check: check, changed: changed, push: push, forceSave: forceSave };
 })();
