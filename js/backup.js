@@ -70,13 +70,13 @@
     return { shown: shown, arch: arch };
   }
 
-  /** Saves the plan as a version (skipped when nothing changed since the last one). */
-  function snapshot(plan, reason) {
+  /** Saves the plan as a version (skipped when nothing changed since the last one, unless force). */
+  function snapshot(plan, reason, force) {
     var json = JSON.stringify(plan), c = counts(plan);
     queue = queue.then(function () {
       if (last === null) return all().then(function (l) { last = l[0] ? l[0].plan : ''; });
     }).then(function () {
-      if (json === last) return;
+      if (json === last && !force) return;
       var at = Date.now();
       return tx('readwrite', function (s) { s.put({ at: at, reason: reason || 'Değişiklik', tiles: c.shown, archived: c.arch, plan: json }); })
         .then(function () { last = json; return prune(); });

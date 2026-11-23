@@ -12,7 +12,7 @@
 
   Drive.loadGis().catch(function (e) { say(e.message, true); });
   // Signed in (also restored after a refresh): the header button becomes "Kütüphane".
-  document.addEventListener('drive:signedin', function () { btn.textContent = 'Kütüphane'; say('Bağlandı'); });
+  document.addEventListener('drive:signedin', function () { btn.textContent = 'Kütüphane'; say(''); });
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -40,7 +40,6 @@
     panel.hidden = false;
     document.body.classList.add('lib-open');
     btn.textContent = 'Kütüphane';
-    say('Bağlandı');
     updateFoot();
     if (!state.folders) loadFolders();
   }
