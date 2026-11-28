@@ -304,9 +304,25 @@
   // ---------- large viewer ----------
   var viewer = $('viewer'), vbody = $('vbody'), vtitle = $('vtitle');
 
+  var vid = null, vsorting = false, vstrip = null;   // Feature 7: the tile shown, the "Sırala" panel, its strip
+
   function open(node) {
-    var t = findTile(node.dataset.id);
-    if (!t || !(t.images || []).length) return;
+    var small = node.querySelector('.strip');
+    var start = small ? Math.round(small.scrollLeft / (small.clientWidth || 1)) : 0;
+    vsorting = false;
+    if (show(node.dataset.id, start)) $('vclose').focus();
+  }
+
+  // Which slide the large view shows now.
+  function vindex() { return vstrip ? Math.round(vstrip.scrollLeft / (vstrip.clientWidth || 1)) : 0; }
+
+  // Draws one tile in the large view, at slide `start`. Also used to redraw after a change (Feature 7).
+  function show(id, start) {
+    var t = findTile(id);
+    if (!t || !(t.images || []).length) { if (!viewer.hidden) close(); return false; }
+    stopVideos();
+    vid = id;
+    vstrip = null;
     var d = parse(t.date);
     vbody.textContent = '';
     vtitle.textContent = d ? GUNL[d.getDay()] + ' ' + d.getDate() + ' ' + AY[d.getMonth() + 1] : '';
@@ -348,11 +364,12 @@
       var cnt = el('div', 'vcount');
       vbody.appendChild(strip);
       vbody.appendChild(cnt);
-      var small = node.querySelector('.strip');
-      var start = small ? Math.round(small.scrollLeft / (small.clientWidth || 1)) : 0;
+      vstrip = strip;
+      start = Math.max(0, Math.min(start || 0, t.images.length - 1));
       var upd = function () {
         var i = Math.round(strip.scrollLeft / (strip.clientWidth || 1));
         cnt.textContent = (i + 1) + ' / ' + t.images.length;
+        markThumbs(i, t.images.length);
         strip.querySelectorAll('video').forEach(function (sv, k) { if (sv.closest('figure') !== strip.children[i]) sv.pause(); });
         var cur = strip.children[i] && strip.children[i].querySelector('video');
         if (cur && !cur.dataset.blob && !cur.dataset.loading && Drive.isSignedIn()) {
@@ -364,20 +381,190 @@
         } else if (cur && cur.dataset.blob) cur.play().catch(function () {});
       };
       strip.addEventListener('scroll', upd, { passive: true });
+      if (t.kind === 'carousel' && vsorting) vbody.appendChild(sortPanel(t));
       viewer.hidden = false;
       strip.scrollLeft = start * strip.clientWidth;
       upd();
     }
+    if (t.kind !== 'carousel') vsorting = false;
+    vsort.hidden = t.kind !== 'carousel';
+    I18N.text(vsort, vsorting ? 'Bitti' : 'Sırala');
+    vsort.setAttribute('aria-pressed', vsorting ? 'true' : 'false');
+    viewer.classList.toggle('sorting', vsorting);
     viewer.hidden = false;
     document.body.style.overflow = 'hidden';
-    $('vclose').focus();
+    document.body.classList.add('viewing');
+    return true;
+  }
+
+  function stopVideos() {
+    vbody.querySelectorAll('video[data-blob]').forEach(function (v) { v.pause(); URL.revokeObjectURL(v.dataset.blob); });
   }
 
   function close() {
     viewer.hidden = true;
-    vbody.querySelectorAll('video[data-blob]').forEach(function (v) { v.pause(); URL.revokeObjectURL(v.dataset.blob); });
+    stopVideos();
     vbody.textContent = '';
+    vid = null; vstrip = null; vsorting = false;
+    viewer.classList.remove('sorting');
     document.body.style.overflow = '';
+    document.body.classList.remove('viewing');
+  }
+
+  // =====================================================================
+  // Feature 7: carousel order in the large view — "Sırala" shows numbered thumbnails;
+  // ‹ › move the shown image, "Kapak yap" makes it image 1, "Çıkar" takes it out of the carousel.
+  // On the computer thumbnails can also be dragged. Every change saves at once, with "Geri al".
+  // =====================================================================
+  var vsort = $('vsort');
+  var ST = 'application/x-vfp-slide';            // drag type for a thumbnail (never a tile, never a file)
+
+  vsort.addEventListener('click', function () {
+    if (!vid) return;
+    vsorting = !vsorting;
+    show(vid, vindex());
+    var first = vbody.querySelector('.vth.on') || vsort;
+    first.focus();
+  });
+
+  function sortPanel(t) {
+    var box = el('div', 'vsortp');
+    var row = el('div', 'vthumbs');
+    row.setAttribute('role', 'list');
+    t.images.forEach(function (im, k) {
+      var b = el('button', 'vth');
+      b.type = 'button';
+      b.dataset.k = k;
+      b.draggable = !touch;
+      b.setAttribute('role', 'listitem');
+      b.setAttribute('aria-label', tr('Görsel {n}', { n: k + 1 }) + (im.name ? ': ' + im.name : ''));
+      b.appendChild(pic(im, 200, ''));
+      if (isVideo(im)) b.appendChild(el('span', 'vmark'));
+      b.appendChild(el('span', 'vnum', String(k + 1)));
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+
+    var tools = el('div', 'vtools');
+    var tool = function (cls, text, label, fn) {
+      var b = el('button', 'vtool ' + cls, text);
+      b.type = 'button';
+      if (label) { b.setAttribute('aria-label', label); b.title = label; }
+      b.addEventListener('click', function () { fn(vindex()); });
+      tools.appendChild(b);
+      return b;
+    };
+    tool('vleft', '‹', tr('Sola taşı'), function (i) { if (i > 0) moveSlide(i, i - 1); });
+    tool('vright', '›', tr('Sağa taşı'), function (i) { var x = findTile(vid); if (x && i < x.images.length - 1) moveSlide(i, i + 1); });
+    tool('vcover', tr('Kapak yap'), null, function (i) { if (i > 0) moveSlide(i, 0, true); });
+    tool('vremove', tr('Çıkar'), null, removeSlide);
+    box.appendChild(tools);
+
+    // tap / click a thumbnail → show that image
+    row.addEventListener('click', function (e) {
+      var b = e.target.closest('.vth');
+      if (b && vstrip) vstrip.scrollLeft = (+b.dataset.k) * vstrip.clientWidth;
+    });
+
+    // computer: drag a thumbnail; a pink line shows where it lands
+    var from = -1;
+    var clear = function () { row.querySelectorAll('.vline-l, .vline-r').forEach(function (n) { n.classList.remove('vline-l', 'vline-r'); }); };
+    var spot = function (e) {
+      var b = e.target.closest && e.target.closest('.vth');
+      if (!b) return null;
+      var r = b.getBoundingClientRect();
+      return { b: b, k: +b.dataset.k, side: e.clientX < r.left + r.width / 2 ? 'l' : 'r' };
+    };
+    row.addEventListener('dragstart', function (e) {
+      var b = e.target.closest && e.target.closest('.vth');
+      if (!b) return;
+      from = +b.dataset.k;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData(ST, String(from));
+      setTimeout(function () { b.classList.add('lifted'); }, 0);
+    });
+    row.addEventListener('dragover', function (e) {
+      if (from < 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var s = spot(e);
+      clear();
+      if (s) s.b.classList.add(s.side === 'l' ? 'vline-l' : 'vline-r');
+    });
+    row.addEventListener('dragleave', function (e) { if (!row.contains(e.relatedTarget)) clear(); });
+    row.addEventListener('drop', function (e) {
+      if (from < 0) return;
+      e.preventDefault();
+      e.stopPropagation();           // not the page's "add files to Drive first" notice
+      var s = spot(e);
+      clear();
+      var f = from;
+      from = -1;
+      if (!s) return;
+      var to = s.k + (s.side === 'r' ? 1 : 0);
+      if (to > f) to--;
+      if (to !== f) moveSlide(f, to);
+    });
+    row.addEventListener('dragend', function () {
+      from = -1;
+      clear();
+      row.querySelectorAll('.lifted').forEach(function (n) { n.classList.remove('lifted'); });
+    });
+    return box;
+  }
+
+  // The shown image's thumbnail is outlined; ‹ › and "Kapak yap" are off where they can't do anything.
+  function markThumbs(i, n) {
+    if (!vsorting) return;
+    vbody.querySelectorAll('.vth').forEach(function (b, k) {
+      b.classList.toggle('on', k === i);
+      b.setAttribute('aria-current', k === i ? 'true' : 'false');
+      if (k === i && b.scrollIntoView) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+    var q = function (c) { return vbody.querySelector('.' + c); };
+    if (q('vleft')) q('vleft').disabled = i <= 0;
+    if (q('vright')) q('vright').disabled = i >= n - 1;
+    if (q('vcover')) q('vcover').disabled = i <= 0;
+  }
+
+  // Changes a tile's images, saves, redraws grid + large view, and offers "Geri al" for 7 seconds.
+  function setImages(t, images, reason, msg, at) {
+    var before = { images: t.images, kind: t.kind };
+    t.images = images;
+    t.kind = images.length > 1 ? 'carousel' : isVideo(images[0]) ? 'reel' : 'post';
+    if (!persist(reason)) { t.images = before.images; t.kind = before.kind; return; }
+    render();
+    show(t.id, at);
+    toast(msg, tr('Geri al'), function () {
+      var x = findTile(t.id);
+      if (!x) return;
+      var now = vid === x.id ? vindex() : 0;
+      x.images = before.images;
+      x.kind = before.kind;
+      if (!persist('Geri alındı')) return;
+      render();
+      if (!viewer.hidden && vid === x.id) show(x.id, Math.min(now, x.images.length - 1));
+    }, 7000);
+  }
+
+  function moveSlide(from, to, cover) {
+    var t = findTile(vid);
+    if (!t || from === to || !t.images[from]) return;
+    var images = t.images.slice();
+    var im = images.splice(from, 1)[0];
+    images.splice(to, 0, im);
+    setImages(t, images, cover ? 'Kapak değişti' : 'Carousel sırası değişti',
+      cover ? tr('Kapak yapıldı.') : tr('Sıra değişti: {n}. görsel.', { n: to + 1 }), to);
+  }
+
+  function removeSlide(i) {
+    var t = findTile(vid);
+    if (!t || t.images.length < 2 || !t.images[i]) return;
+    var images = t.images.slice();
+    images.splice(i, 1);
+    setImages(t, images, 'Görsel çıkarıldı',
+      images.length === 1 ? tr('Görsel çıkarıldı; artık tek gönderi.') : tr("Görsel carousel'den çıkarıldı."),
+      Math.min(i, images.length - 1));
   }
 
   $('vclose').addEventListener('click', close);
@@ -1041,6 +1228,7 @@
     names();
     render();
     setMode(mode, true);
+    if (!viewer.hidden && vid) show(vid, vindex());          // Feature 7: the open large view too
     if (pick && spot) placeTap(document.querySelector(spot.id ? '.tile[data-id="' + spot.id + '"]' : '.addend'), 0);
   });
 

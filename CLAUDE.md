@@ -92,6 +92,8 @@ How features are named: **Feature N: short name**, and its parts **N.1, N.2…**
   - **6.1 Switch + page texts:** "EN" / "TR" button next to Yedek, switches at once, remembered per browser (`vfp.lang`), Turkish default; html `lang` follows.
   - **6.2 Grid and editing:** labels, week bands/tabs (W2 in English), pinned bar, date chips (12 Nov · Thu), questions, move bar, calendar, messages.
   - **6.3 Yedek, Kütüphane, Drive:** panel texts, Geçmiş reasons (stored Turkish, shown translated incl. Bugün/Dün/months/devices), Excel column headers, save note (redrawn on a switch), conflict question, Google sign-in messages.
+- **Feature 7: Carousel order** (branch `feature-7-carousel-order`)
+  - **7.1 "Sırala" in the large view:** a carousel's large view has a "Sırala" button next to "Kapat ✕" (also in Görüntüle on the phone: the button itself is the safety). It shows numbered thumbnails under a smaller image; tapping one shows that image. For the shown image: ‹ › move it one place, "Kapak yap" makes it image 1 (the grid cover), "Çıkar" takes it out of the carousel (the Drive file stays in Drive). On the computer, thumbnails can also be dragged (pink line). A carousel cut to 1 image becomes a post (a video → reel). "Bitti" closes the row. Every change saves at once (Geçmiş: "Carousel sırası değişti" / "Kapak değişti" / "Görsel çıkarıldı", then Drive), with "Geri al" for 7 seconds. While the large view is open, notices sit at the top and the phone's ✎ switch is hidden.
 - Later (decide then): sharing the plan with other people (share plan.json from Drive); ask before creating a plan file in an account that has none (wrong account picked).
 
 ## Workflow
